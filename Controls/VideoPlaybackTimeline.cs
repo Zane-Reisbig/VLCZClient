@@ -41,7 +41,6 @@ namespace WINFORMS_VLCClient.Controls
 
             this.MouseWheel += MouseWheelMoved;
             this.PBVideoTimeline.MouseWheel += MouseWheelMoved;
-            this.Disposed += Cleanup;
         }
 
         public void SetLinkedMediaViewer(MediaPlayer player)
@@ -166,19 +165,16 @@ namespace WINFORMS_VLCClient.Controls
         private void Player_TimeChanged(
             object? sender,
             LibVLCSharp.Shared.MediaPlayerTimeChangedEventArgs e
-        ) =>
+        )
+        {
+            if (this.IsDisposed)
+                return;
+
             Invoke(() =>
             {
                 UpdateBarPosition(e.Time);
                 SetDisplayedVideoTime(Timestamp.FromMS(e.Time));
             });
-
-        private void Cleanup(object? sender, EventArgs e)
-        {
-            if (this.linkedMediaPlayer == null)
-                return;
-
-            this.linkedMediaPlayer.TimeChanged -= Player_TimeChanged;
         }
 
         private void PBVideoTimeline_MouseClick(object sender, MouseEventArgs e)

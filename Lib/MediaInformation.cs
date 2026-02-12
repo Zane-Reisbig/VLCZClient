@@ -14,10 +14,10 @@ namespace WINFORMS_VLCClient.Lib.MediaInformation
         INI,
     }
 
-    public class MediaInformation(Uri path, StandardDefinitions.Timestamp timestamp)
+    public class MediaInformation(Uri? path, StandardDefinitions.Timestamp timestamp)
     {
-        Uri filePath = path;
-        public Uri FilePath
+        Uri? filePath = path;
+        public Uri? FilePath
         {
             get => filePath;
         }
@@ -28,8 +28,11 @@ namespace WINFORMS_VLCClient.Lib.MediaInformation
             get
             {
                 if (fileName == null)
-                    if (Path.Exists(filePath.LocalPath))
-                        fileName = Path.GetFileNameWithoutExtension(filePath.LocalPath);
+                    if (filePath != null)
+                        if (Path.Exists(filePath.LocalPath))
+                            fileName = Path.GetFileNameWithoutExtension(filePath.LocalPath);
+                        else
+                            fileName = "No Media Found!";
                     else
                         fileName = "No Media Found!";
 
@@ -116,7 +119,14 @@ namespace WINFORMS_VLCClient.Lib.MediaInformation
             if (timestamp == null)
                 throw new Exception("Failed to parse timestamp!");
 
-            return new(new Uri(path), timestamp);
+            try
+            {
+                return new(new Uri(path), timestamp);
+            }
+            catch
+            {
+                return new(null, timestamp);
+            }
         }
     }
 }

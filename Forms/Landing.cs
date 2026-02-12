@@ -84,10 +84,20 @@ namespace WINFORMS_VLCClient
             Core.Initialize();
             InitializeComponent();
 
-            lastWatched = GetLastWatched();
-            FillLastWatched(lastWatched);
+            FillLastWatched(LastWatched);
+
+            VideoViewForm.FormClosed += (_, _) =>
+            {
+                FillLastWatched(LastWatched);
+            };
+
+            if (LastWatched.FilePath == null)
+                BContinueLast.Enabled = false;
 
 #if DEBUG
+            if (LastWatched.FilePath == null)
+                return;
+
             BContinueLast_Click(BContinueLast, null);
             VideoViewForm.Timeline.MuteButtonClicked?.Invoke(null, null);
 #endif
@@ -125,7 +135,7 @@ namespace WINFORMS_VLCClient
         {
             MIInformationPanel.EpisodeTitle = source.FileName;
             MIInformationPanel.Timestamp = source.Timestamp;
-            MIInformationPanel.MediaPath = Path.GetDirectoryName(source.FilePath.LocalPath) ?? "";
+            MIInformationPanel.MediaPath = Path.GetDirectoryName(source.FilePath?.LocalPath) ?? "";
         }
 
         void PlayMedia(Uri media, StandardDefinitions.Timestamp? startingPos = null)
@@ -154,9 +164,12 @@ namespace WINFORMS_VLCClient
 
         void BContinueLast_Click(object sender, EventArgs e)
         {
+            if (LastWatched.FilePath == null)
+                return;
+
             var _sender = (Control)sender;
             _sender.Enabled = false;
-            PlayMedia(LastWatched.FilePath, LastWatched.Timestamp);
+            PlayMedia(LastWatched.FilePath!, LastWatched.Timestamp);
             _sender.Enabled = true;
         }
     }

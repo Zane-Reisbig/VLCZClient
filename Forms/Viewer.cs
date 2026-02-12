@@ -61,6 +61,8 @@ namespace WINFORMS_VLCClient.Forms
         {
             InitializeComponent();
             parent = _parent;
+            this.FormClosed += (_, _) => Cleanup();
+
             CurrentPlayer = parent.RequestMediaPlayer(VVMainView);
 
             VVMainView.MouseEnter += ShowTimeline;
@@ -82,11 +84,10 @@ namespace WINFORMS_VLCClient.Forms
 
             CurrentPlayer = parent.RequestMediaPlayer(VVMainView);
             CurrentPlayer.Media = media;
+            CurrentPlayer.Play();
 
             if (startingPosition != null)
                 CurrentPlayer.Time = startingPosition.ToMS();
-
-            CurrentPlayer.Play();
         }
 
         void DoPoll(object? sender, EventArgs e)
@@ -136,6 +137,12 @@ namespace WINFORMS_VLCClient.Forms
                 control.Enabled = false;
                 control.Visible = false;
             }
+        }
+
+        void Cleanup()
+        {
+            DisposePlayer();
+            pollTimer.Dispose();
         }
 
         void DisposePlayer()
