@@ -1,0 +1,4 @@
+bin/
+obj/
+\.vs/
+.WINFORMS-VLCClient.csproj.user
