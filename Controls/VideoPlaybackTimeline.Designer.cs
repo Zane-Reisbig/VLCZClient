@@ -44,15 +44,14 @@
             PBVideoTimeline.Name = "PBVideoTimeline";
             PBVideoTimeline.Size = new Size(262, 28);
             PBVideoTimeline.TabIndex = 0;
-            PBVideoTimeline.MouseClick += PBVideoTimeline_MouseClick;
-            PBVideoTimeline.MouseMove += PBVideoTimeline_MouseMove;
             // 
             // LPlayButton
             // 
-            LPlayButton.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            LPlayButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             LPlayButton.Enabled = false;
-            LPlayButton.Font = new Font("Segoe UI", 15.75F, FontStyle.Regular, GraphicsUnit.Point, 0);
-            LPlayButton.Location = new Point(150, 25);
+            LPlayButton.Font = new Font("Segoe UI", 18F);
+            LPlayButton.Location = new Point(233, 33);
+            LPlayButton.MaximumSize = new Size(32, 40);
             LPlayButton.Name = "LPlayButton";
             LPlayButton.Size = new Size(32, 40);
             LPlayButton.TabIndex = 1;
@@ -63,10 +62,11 @@
             // 
             // LPauseButton
             // 
-            LPauseButton.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            LPauseButton.Font = new Font("Segoe UI", 15.75F, FontStyle.Regular, GraphicsUnit.Point, 0);
-            LPauseButton.Location = new Point(150, 25);
+            LPauseButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            LPauseButton.Font = new Font("Segoe UI", 18F);
+            LPauseButton.Location = new Point(233, 33);
             LPauseButton.Margin = new Padding(0);
+            LPauseButton.MaximumSize = new Size(32, 43);
             LPauseButton.Name = "LPauseButton";
             LPauseButton.Size = new Size(32, 43);
             LPauseButton.TabIndex = 2;
@@ -76,10 +76,10 @@
             // 
             // LMuteButton
             // 
-            LMuteButton.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            LMuteButton.Font = new Font("Segoe UI", 15.75F, FontStyle.Regular, GraphicsUnit.Point, 0);
-            LMuteButton.Location = new Point(228, 25);
+            LMuteButton.Font = new Font("Segoe UI", 15F);
+            LMuteButton.Location = new Point(106, 39);
             LMuteButton.Margin = new Padding(0);
+            LMuteButton.MaximumSize = new Size(32, 43);
             LMuteButton.Name = "LMuteButton";
             LMuteButton.Size = new Size(32, 43);
             LMuteButton.TabIndex = 2;
@@ -89,10 +89,10 @@
             // 
             // LUnMuteButton
             // 
-            LUnMuteButton.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            LUnMuteButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             LUnMuteButton.Enabled = false;
-            LUnMuteButton.Font = new Font("Segoe UI", 15.75F, FontStyle.Regular, GraphicsUnit.Point, 0);
-            LUnMuteButton.Location = new Point(228, 25);
+            LUnMuteButton.Font = new Font("Segoe UI", 15F);
+            LUnMuteButton.Location = new Point(106, 39);
             LUnMuteButton.Margin = new Padding(0);
             LUnMuteButton.Name = "LUnMuteButton";
             LUnMuteButton.Size = new Size(32, 43);
@@ -123,6 +123,7 @@
             Controls.Add(LUnMuteButton);
             Controls.Add(LMuteButton);
             ForeColor = SystemColors.Control;
+            MinimumSize = new Size(268, 74);
             Name = "VideoPlaybackTimeline";
             Size = new Size(268, 74);
             ResumeLayout(false);

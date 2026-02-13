@@ -12,197 +12,77 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using LibVLCSharp.Shared;
 using WINFORMS_VLCClient.Forms;
+using WINFORMS_VLCClient.Lib.ComponentCycler;
 using static ClientLib.STD.StandardDefinitions;
 
 namespace WINFORMS_VLCClient.Controls
 {
     public partial class VideoPlaybackTimeline : UserControl
     {
-        MediaPlayer? linkedMediaPlayer;
-        long TotalTimeMS
-        {
-            get
-            {
-                if (linkedMediaPlayer == null)
-                    throw new Exception($"No linked media viewer!");
-
-                return linkedMediaPlayer.Length;
-            }
-        }
-
         public int movementAmount = 1000;
-        public EventHandler<TimelineChangedArgs>? OnTimelineChanged;
-        public EventHandler? PauseButtonClicked;
+        public EventHandler<MouseEventArgs>? ScrollWheelScrolled;
+        public EventHandler<MouseEventArgs>? MouseDidMove;
         public EventHandler? MuteButtonClicked;
+        public EventHandler? PauseButtonClicked;
+
+        ComponentCycler PauseCycler;
+        ComponentCycler MuteCycler;
 
         public VideoPlaybackTimeline()
         {
             InitializeComponent();
 
+            PauseCycler = new([LPauseButton, LPlayButton]);
+            PauseCycler.ShowAtSlot(0);
+
+            MuteCycler = new([LMuteButton, LUnMuteButton]);
+            MuteCycler.ShowAtSlot(0);
+
             this.MouseWheel += MouseWheelMoved;
-            this.PBVideoTimeline.MouseWheel += MouseWheelMoved;
+            PBVideoTimeline.MouseWheel += MouseWheelMoved;
+            PBVideoTimeline.MouseMove += OnMouseDidMove;
         }
 
-        public void SetLinkedMediaViewer(MediaPlayer player)
+        public float ClickPointToBarPercentage(Point location)
         {
-            linkedMediaPlayer = player;
-            this.linkedMediaPlayer.TimeChanged += Player_TimeChanged;
-        }
-
-        public void UpdateBarPosition(long ms)
-        {
-            if (linkedMediaPlayer == null)
-                return;
-
-            if (TotalTimeMS < ms)
-                throw new Exception(
-                    $"Total Time: \"{TotalTimeMS}\" is smaller than requested postion: \"{ms}\""
-                );
-
-            double percentage = (double)ms / TotalTimeMS * 100;
-            PBVideoTimeline.Value = (int)percentage;
-            Debug.WriteLine(
-                $"Bar Position: \"{percentage}\"\nTotal Time: \"{TotalTimeMS}\"\nRequested Time: \"{ms}\""
-            );
-        }
-
-        public Timestamp BarPositionToTimeStamp(Point location)
-        {
-            if (linkedMediaPlayer == null)
-                throw new Exception("No linked media player!");
-
             double percentage = (double)location.X / PBVideoTimeline.Width;
-            percentage = Math.Clamp(percentage, 0.0, 1.0);
-
-            long timeMs = (long)(percentage * TotalTimeMS);
-
-            return Timestamp.FromMS(timeMs);
+            return (float)(Math.Clamp(percentage, 0.0, 1.0));
         }
 
-        void SetDisplayedVideoTime(Timestamp to)
+        public bool IsVolumeMutedShown() => MuteCycler.GetSlot() == 0;
+
+        public void ShowVolumeIsMuted() => MuteCycler.ShowAtSlot(0);
+
+        public void ShowVolumeIsPlaying() => MuteCycler.ShowAtSlot(1);
+
+        public void ShowVideoIsPaused() => MuteCycler.ShowAtSlot(1);
+
+        public void ShowVideoIsPlaying() => PauseCycler.ShowAtSlot(0);
+
+        public void SetDisplayedVideoTime(Timestamp to, Timestamp other) =>
+            LVideoTime.Text = $"{to.GetFormat()} | {other.GetFormat()}";
+
+        public void SetBarPosition(int percentage) => PBVideoTimeline.Value = percentage;
+
+        private void OnMouseDidMove(object? sender, MouseEventArgs e) =>
+            MouseDidMove?.Invoke(this, e);
+
+        private void MouseWheelMoved(object? sender, MouseEventArgs e) =>
+            ScrollWheelScrolled?.Invoke(this, e);
+
+        private void MuteButton_MouseUp(object? sender, MouseEventArgs e)
         {
-            LVideoTime.Text =
-                $"{to.GetFormat()} | {Timestamp.FromMS(linkedMediaPlayer?.Length ?? 0).GetFormat()}";
-        }
-
-        private void MouseWheelMoved(object? sender, MouseEventArgs e)
-        {
-            if (linkedMediaPlayer == null)
-                return;
-
-            if (!linkedMediaPlayer.IsPlaying)
-                return;
-
-            long videoMovementAmount = linkedMediaPlayer.Time;
-            if (e.Delta > 0)
-                videoMovementAmount += movementAmount;
-            else
-                videoMovementAmount -= movementAmount;
-
-            videoMovementAmount = long.Clamp(videoMovementAmount, 0, TotalTimeMS);
-
-            OnTimelineChanged?.Invoke(this, new(linkedMediaPlayer.Time, videoMovementAmount));
-        }
-
-        private void PauseButton_Animation_MouseDown(object sender, EventArgs e)
-        {
-            if (sender is not Control control)
-                return;
-
-            control.Scale(SizeF.Subtract(control.Size, new SizeF(0.8f, 0.8f)));
-        }
-
-        private void PauseButton_MouseUp(object sender, EventArgs e)
-        {
-            if (sender is not Control control)
-                return;
-
-            //control.Scale(SizeF.Add(control.Size, new SizeF(0.2f, 0.2f)));
-
-            if (!LPauseButton.Visible)
-            {
-                LPlayButton.Visible = false;
-                LPlayButton.Enabled = false;
-                LPauseButton.Visible = true;
-                LPauseButton.Enabled = true;
-            }
-            else
-            {
-                LPauseButton.Visible = false;
-                LPauseButton.Enabled = false;
-                LPlayButton.Visible = true;
-                LPlayButton.Enabled = true;
-            }
-
-            PauseButtonClicked?.Invoke(this, EventArgs.Empty);
-        }
-
-        private void MuteButton_MouseUp(object sender, EventArgs e)
-        {
-            if (sender is not Control control)
-                return;
-
-            //control.Scale(SizeF.Add(control.Size, new SizeF(0.2f, 0.2f)));
-
-            if (!LMuteButton.Visible)
-            {
-                LUnMuteButton.Visible = false;
-                LUnMuteButton.Enabled = false;
-                LMuteButton.Visible = true;
-                LMuteButton.Enabled = true;
-            }
-            else
-            {
-                LMuteButton.Visible = false;
-                LMuteButton.Enabled = false;
-                LUnMuteButton.Visible = true;
-                LUnMuteButton.Enabled = true;
-            }
-
+            MuteCycler.Cycle();
             MuteButtonClicked?.Invoke(this, EventArgs.Empty);
         }
 
-        private void Player_TimeChanged(
-            object? sender,
-            LibVLCSharp.Shared.MediaPlayerTimeChangedEventArgs e
-        )
+        private void PauseButton_MouseUp(object? sender, MouseEventArgs e)
         {
-            if (this.IsDisposed)
-                return;
-
-            Invoke(() =>
-            {
-                UpdateBarPosition(e.Time);
-                SetDisplayedVideoTime(Timestamp.FromMS(e.Time));
-            });
+            PauseCycler.Cycle();
+            PauseButtonClicked?.Invoke(this, EventArgs.Empty);
         }
 
-        private void PBVideoTimeline_MouseClick(object sender, MouseEventArgs e)
-        {
-            var requestedPosition = BarPositionToTimeStamp(e.Location);
-            UpdateBarPosition(requestedPosition.ToMS());
-
-            if (linkedMediaPlayer != null)
-                OnTimelineChanged?.Invoke(
-                    this,
-                    new(linkedMediaPlayer.Time, requestedPosition.ToMS())
-                );
-        }
-
-        private void PBVideoTimeline_MouseMove(object sender, MouseEventArgs e)
-        {
-            if (e.Button != MouseButtons.Left)
-                return;
-
-            var requestedPosition = BarPositionToTimeStamp(e.Location);
-            UpdateBarPosition(requestedPosition.ToMS());
-
-            if (linkedMediaPlayer != null)
-                OnTimelineChanged?.Invoke(
-                    this,
-                    new(linkedMediaPlayer.Time, requestedPosition.ToMS())
-                );
-        }
+        private void VideoPlaybackTimeline_Load(object sender, EventArgs e) { }
     }
 
     public class TimelineChangedArgs(long originalPosition, long requestedPosition) : EventArgs

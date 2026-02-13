@@ -56,7 +56,15 @@ namespace WINFORMS_VLCClient
             get
             {
                 if (videoViewForm == null || videoViewForm.IsDisposed)
+                {
                     videoViewForm = new(this);
+                    videoViewForm.FormClosed += (_, _) =>
+                    {
+                        FillLastWatched(LastWatched);
+                        BContinueLast.Enabled = true;
+                        BWatchNew.Enabled = true;
+                    };
+                }
 
                 return videoViewForm;
             }
@@ -86,34 +94,11 @@ namespace WINFORMS_VLCClient
 
             FillLastWatched(LastWatched);
 
-            VideoViewForm.FormClosed += (_, _) =>
-            {
-                FillLastWatched(LastWatched);
-            };
-
             if (LastWatched.FilePath == null)
                 BContinueLast.Enabled = false;
-
-#if DEBUG
-            if (LastWatched.FilePath == null)
-                return;
-
-            BContinueLast_Click(BContinueLast, null);
-            VideoViewForm.Timeline.MuteButtonClicked?.Invoke(null, null);
-#endif
         }
 
-        public MediaPlayer RequestMediaPlayer(VideoView outputsource)
-        {
-            var player = new MediaPlayer(VLCLib)
-            {
-                EnableKeyInput = false,
-                EnableMouseInput = false,
-            };
-            outputsource.MediaPlayer = player;
-
-            return player;
-        }
+        public MediaPlayer MakeMediaPlayer() => new MediaPlayer(VLCLib);
 
         void CreateNewHistory()
         {
@@ -138,39 +123,40 @@ namespace WINFORMS_VLCClient
             MIInformationPanel.MediaPath = Path.GetDirectoryName(source.FilePath?.LocalPath) ?? "";
         }
 
-        void PlayMedia(Uri media, StandardDefinitions.Timestamp? startingPos = null)
+        void BWatchNew_Click(object? sender, EventArgs e)
         {
-            if (!VideoViewForm.Visible)
-                VideoViewForm.Show(this);
+            BWatchNew.Enabled = false;
+            BContinueLast.Enabled = false;
 
-            VideoViewForm.PlayMedia(new Media(VLCLib, media), startingPos);
-        }
-
-        void BWatchNew_Click(object sender, EventArgs e)
-        {
-            var _sender = (Control)sender;
-            _sender.Enabled = false;
-
-            var dialogRes = FileDialog.ShowDialog(this);
-            if (!dialogRes.HasFlag(DialogResult.OK))
+            var res = FileDialog.ShowDialog();
+            if (res != DialogResult.OK)
             {
-                _sender.Enabled = true;
+                BWatchNew.Enabled = true;
                 return;
             }
 
-            PlayMedia(new Uri(FileDialog.FileNames[0]));
-            _sender.Enabled = true;
+            var filePath = FileDialog.FileNames[0];
+            VideoViewForm.PlayMedia(new Media(VLCLib, filePath));
+
+            if (!VideoViewForm.Visible)
+                VideoViewForm.Show();
         }
 
-        void BContinueLast_Click(object sender, EventArgs e)
+        void BContinueLast_Click(object? sender, EventArgs e)
         {
-            if (LastWatched.FilePath == null)
-                return;
+            BContinueLast.Enabled = false;
+            BWatchNew.Enabled = false;
 
-            var _sender = (Control)sender;
-            _sender.Enabled = false;
-            PlayMedia(LastWatched.FilePath!, LastWatched.Timestamp);
-            _sender.Enabled = true;
+            if (LastWatched.FilePath == null)
+            {
+                BContinueLast.Enabled = true;
+                return;
+            }
+
+            VideoViewForm.PlayMedia(new Media(VLCLib, LastWatched.FilePath), LastWatched.Timestamp);
+
+            if (!VideoViewForm.Visible)
+                VideoViewForm.Show();
         }
     }
 }
