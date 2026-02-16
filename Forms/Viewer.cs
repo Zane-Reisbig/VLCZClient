@@ -187,10 +187,11 @@ namespace WINFORMS_VLCClient.Forms
             if (CurrentPlayer == null)
                 return;
 
+            // Dude VLCLib is really quite awful oh my god
             if (e.Delta < 0)
-                CurrentPlayer.Time = CurrentPlayer.Time + SCROLL_SEEK_MS;
+                ThreadPool.QueueUserWorkItem((_) => CurrentPlayer.Time += SCROLL_SEEK_MS);
             else
-                CurrentPlayer.Time = CurrentPlayer.Time - SCROLL_SEEK_MS;
+                ThreadPool.QueueUserWorkItem((_) => CurrentPlayer.Time -= SCROLL_SEEK_MS);
         }
 
         void PollingTick()
