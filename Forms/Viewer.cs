@@ -133,7 +133,8 @@ namespace WINFORMS_VLCClient.Forms
             VPTMainTimeline.PreviousButtonClicked += (_, _) =>
                 PrevButton?.Invoke(this, EventArgs.Empty);
 
-            TBVolumeBar.ValueChanged += TrackBarChangedPosition;
+            TBVolumeBar.ValueChanged += (_, _) =>
+                SetPlayerVolume(TBVolumeBar.Value, fromVolumeBar: true);
 
             BRecordIntro.Click += DoMarkSkipIntro;
             BSkipIntro.Click += DoSkipIntro;
@@ -184,14 +185,6 @@ namespace WINFORMS_VLCClient.Forms
             }
 
             SetPlayerTime(requestedTime);
-        }
-
-        void TrackBarChangedPosition(object? sender, EventArgs e)
-        {
-            if (sender is not TrackBar tb || CurrentPlayer == null)
-                return;
-
-            SetPlayerVolume(tb.Value);
         }
 
         void ScrollWheelSeek(object? sender, MouseEventArgs e)
@@ -368,7 +361,8 @@ namespace WINFORMS_VLCClient.Forms
                 }
             );
 
-        void SetPlayerVolume(int to) =>
+        void SetPlayerVolume(int to, bool fromVolumeBar = false)
+        {
             RunInThreadPool(
                 (_) =>
                 {
@@ -388,14 +382,18 @@ namespace WINFORMS_VLCClient.Forms
                                 VPTMainTimeline.ShowVolumeIsMuted();
                             else if (VPTMainTimeline.IsVolumeMutedShown() && !CurrentPlayer.Mute)
                                 VPTMainTimeline.ShowVolumeIsPlaying();
-                        }
+
+                            if (!fromVolumeBar)
+                                TBVolumeBar.Value = to;
+                        },
+                        "Volume Invoke Ran!"
                     );
 
-                    TBVolumeBar.Value = newVolume;
-                    CurrentPlayer.Volume = newVolume;
+                    CurrentPlayer.Volume = to;
                 },
                 $"Volume Change: {CurrentPlayer?.Volume}->{to}"
             );
+        }
 
         void SetPlayerTime(long to) =>
             RunInThreadPool(
@@ -426,20 +424,12 @@ namespace WINFORMS_VLCClient.Forms
                     return true;
                 }
                 case Keys.Up:
-                    SetPlayerVolume(VOLUME_ARROW_CHANGE_PERCENT);
+                    SetPlayerVolume(TBVolumeBar.Value + VOLUME_ARROW_CHANGE_PERCENT);
 
-                    if (CurrentPlayer.Volume == 100)
-                        return true;
-
-                    return false;
-
+                    return true;
                 case Keys.Down:
-                    SetPlayerVolume(-VOLUME_ARROW_CHANGE_PERCENT);
-
-                    if (CurrentPlayer.Volume == 0)
-                        return true;
-
-                    return false;
+                    SetPlayerVolume(TBVolumeBar.Value - VOLUME_ARROW_CHANGE_PERCENT);
+                    return true;
             }
 
             return base.ProcessCmdKey(ref msg, keydata);

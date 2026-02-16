@@ -78,7 +78,7 @@
             // 
             // LMuteButton
             // 
-            LMuteButton.Anchor = AnchorStyles.Left | AnchorStyles.Right;
+            LMuteButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             LMuteButton.Font = new Font("Segoe UI", 15F);
             LMuteButton.Location = new Point(106, 39);
             LMuteButton.Margin = new Padding(0);

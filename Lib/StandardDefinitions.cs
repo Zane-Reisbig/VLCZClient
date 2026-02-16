@@ -56,19 +56,20 @@ namespace ClientLib.STD
             }
 
             Debug.WriteLineIf(debugLabel != null, $"Running Invoke Job: {debugLabel}");
-            target.Invoke(() =>
+
+            try
             {
-                try
+                target.Invoke(() =>
                 {
                     callable();
                     Debug.WriteLineIf(debugLabel != null, $"WARN: \"{debugLabel}\" DONE!");
-                }
-                catch (ObjectDisposedException e)
-                {
-                    Debug.WriteLine("Object was disposed mid-Invoke!");
-                    Debug.WriteLine(e);
-                }
-            });
+                });
+            }
+            catch (ObjectDisposedException e)
+            {
+                Debug.WriteLine("Object was disposed mid-Invoke!");
+                Debug.WriteLine(e);
+            }
         }
 
         public static Dictionary<string, string> ReadINIString(string source, char delimiter = '=')

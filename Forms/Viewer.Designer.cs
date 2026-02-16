@@ -76,6 +76,7 @@
             TBVolumeBar.Name = "TBVolumeBar";
             TBVolumeBar.Size = new Size(93, 21);
             TBVolumeBar.TabIndex = 2;
+            TBVolumeBar.TabStop = false;
             TBVolumeBar.TickFrequency = 100;
             TBVolumeBar.TickStyle = TickStyle.None;
             // 
