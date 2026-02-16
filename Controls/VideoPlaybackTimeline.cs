@@ -27,8 +27,8 @@ namespace WINFORMS_VLCClient.Controls
         public EventHandler? NextButtonClicked;
         public EventHandler? PreviousButtonClicked;
 
-        ComponentCycler PauseCycler;
-        ComponentCycler MuteCycler;
+        readonly ComponentCycler PauseCycler;
+        readonly ComponentCycler MuteCycler;
 
         public VideoPlaybackTimeline()
         {
@@ -57,7 +57,9 @@ namespace WINFORMS_VLCClient.Controls
 
         public void ShowVolumeIsPlaying() => MuteCycler.ShowAtSlot(1);
 
-        public void ShowVideoIsPaused() => MuteCycler.ShowAtSlot(1);
+        public bool IsVideoPausedShown() => PauseCycler.GetSlot() == 1;
+
+        public void ShowVideoIsPaused() => PauseCycler.ShowAtSlot(1);
 
         public void ShowVideoIsPlaying() => PauseCycler.ShowAtSlot(0);
 

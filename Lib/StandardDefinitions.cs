@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -15,7 +16,7 @@ namespace ClientLib.STD
             FFMPEG,
         }
 
-        public static bool isCursorInForm(Form target)
+        public static bool IsCursorInForm(Form target)
         {
             if (target.IsDisposed || target.Disposing)
                 return false;
@@ -31,14 +32,50 @@ namespace ClientLib.STD
                 return strRep;
 
             string _out = new string('0', maxLength + strRep.Length) + strRep;
-            return _out.Substring(_out.Length - maxLength);
+            return _out[^maxLength..];
+        }
+
+        public static void RunInThreadPool(WaitCallback callable, string? debugLabel = null)
+        {
+            Debug.WriteLineIf(debugLabel != null, $"Running Pooled Job: {debugLabel}");
+            ThreadPool.QueueUserWorkItem(
+                (input) =>
+                {
+                    callable(input);
+                    Debug.WriteLineIf(debugLabel != null, $"WARN: \"{debugLabel}\" DONE!");
+                }
+            );
+        }
+
+        public static void RunSafeInvoke(Control target, Action callable, string? debugLabel = null)
+        {
+            if (target.Disposing || target.IsDisposed || !target.IsHandleCreated)
+            {
+                Debug.Write($"WARN: Invoke Job \"{debugLabel}\" FAILED!");
+                return;
+            }
+
+            Debug.WriteLineIf(debugLabel != null, $"Running Invoke Job: {debugLabel}");
+            target.Invoke(() =>
+            {
+                try
+                {
+                    callable();
+                    Debug.WriteLineIf(debugLabel != null, $"WARN: \"{debugLabel}\" DONE!");
+                }
+                catch (ObjectDisposedException e)
+                {
+                    Debug.WriteLine("Object was disposed mid-Invoke!");
+                    Debug.WriteLine(e);
+                }
+            });
         }
 
         public static Dictionary<string, string> ReadINIString(string source, char delimiter = '=')
         {
             var lines = source.Split("\n");
 
-            Dictionary<string, string> _out = new();
+            Dictionary<string, string> _out = [];
             foreach (string line in lines)
             {
                 if (line == "")
@@ -108,20 +145,16 @@ namespace ClientLib.STD
                     return new Timestamp();
 
                 string[] hmsf = source.Split(':');
-                int hours;
-                if (!int.TryParse(hmsf[0], out hours))
+                if (!int.TryParse(hmsf[0], out int hours))
                     throw new Exception($"Failed to parse hours!\nFound \"{hmsf[0]}\"");
 
-                int minute;
-                if (!int.TryParse(hmsf[1], out minute))
+                if (!int.TryParse(hmsf[1], out int minute))
                     throw new Exception($"Failed to parse minutes!\nFound \"{hmsf[1]}\"");
 
-                int second;
-                if (!int.TryParse(hmsf[2], out second))
+                if (!int.TryParse(hmsf[2], out int second))
                     throw new Exception($"Failed to parse second!\nFound \"{hmsf[2]}\"");
 
-                int frames;
-                if (!int.TryParse(hmsf[3], out frames))
+                if (!int.TryParse(hmsf[3], out int frames))
                     throw new Exception($"Failed to parse frames!\nFound \"{hmsf[3]}\"");
 
                 return new Timestamp(hours, minute, second, frames);
@@ -134,13 +167,12 @@ namespace ClientLib.STD
 
             public string GetFormat(TimestampFormat format = TimestampFormat.FFMPEG)
             {
-                switch (format)
+                return format switch
                 {
-                    case TimestampFormat.FFMPEG:
-                        return $"{PadZero(hours)}:{PadZero(minute)}:{PadZero(second)}:{PadZero(frames)}";
-                    default:
-                        throw new Exception($"Format \"{format.ToString()}\" not recognized!");
-                }
+                    TimestampFormat.FFMPEG =>
+                        $"{PadZero(hours)}:{PadZero(minute)}:{PadZero(second)}:{PadZero(frames)}",
+                    _ => throw new Exception($"Format \"{format}\" not recognized!"),
+                };
             }
 
             public long ToMS() => (long)((hours * 3600 + minute * 60 + second) * 1000 + frames);

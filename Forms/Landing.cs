@@ -72,7 +72,7 @@ namespace WINFORMS_VLCClient
                     videoViewForm.MediaStopped += (_, _) => ChangeMedia(forward: true);
                     videoViewForm.NextButton += (_, _) => ChangeMedia(forward: true);
                     videoViewForm.PrevButton += (_, _) => ChangeMedia(forward: false);
-                    videoViewForm.FormClosing += (object? sender, FormClosingEventArgs e) =>
+                    videoViewForm.FormClosing += (sender, e) =>
                     {
                         if (sender is not Viewer viewForm)
                             return;

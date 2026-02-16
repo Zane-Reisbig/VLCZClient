@@ -27,8 +27,8 @@ namespace WINFORMS_VLCClient.Forms
         static readonly int POLL_RATE_MS = 900;
         static readonly int ARROW_SEEK_MS = 10 * 1000;
         static readonly int SCROLL_SEEK_MS = 500;
-        static readonly int VOLUME_DEBOUNCE_TIME_MS = 500;
-        static readonly int ARROW_VOLUME_CHANGE_PERCENT = 1;
+        static readonly int VOLUME_DEFAULT_PERCENTAGE = 70;
+        static readonly int VOLUME_ARROW_CHANGE_PERCENT = 1;
 
         public static readonly Size VIEWER_MINIUM_SIZE = new(800, 600);
         static readonly Size ContainerSizeButtons = new(104, 59);
@@ -47,6 +47,8 @@ namespace WINFORMS_VLCClient.Forms
 
         MediaPlayer? CurrentPlayer => VVMainView.MediaPlayer;
 
+        bool mediaPlayerHasBeenCreated = false;
+
         MediaPlayer GetNewMediaPlayer()
         {
             if (CurrentPlayer != null)
@@ -54,7 +56,7 @@ namespace WINFORMS_VLCClient.Forms
 
             VVMainView.MediaPlayer = parent!.MakeMediaPlayer();
             CurrentPlayer!.TimeChanged += OnTimeChange;
-            CurrentPlayer!.EndReached += (_, _) =>
+            CurrentPlayer.EndReached += (_, _) =>
             {
                 Invoke(() =>
                 {
@@ -66,9 +68,28 @@ namespace WINFORMS_VLCClient.Forms
                 });
             };
 
-            CurrentPlayer!.EnableKeyInput = false;
-            CurrentPlayer!.EnableMouseInput = false;
-            CurrentPlayer!.Volume = TBVolumeBar.Value;
+            CurrentPlayer.EnableKeyInput = false;
+            CurrentPlayer.EnableMouseInput = false;
+
+            if (
+                (CurrentPlayer.Volume == 0 || CurrentPlayer.Mute)
+                && TBVolumeBar.Value != 0
+                && !mediaPlayerHasBeenCreated
+            )
+            {
+                Debug.WriteLine("Set Volume to default");
+                CurrentPlayer.Volume = VOLUME_DEFAULT_PERCENTAGE;
+                TBVolumeBar.Value = VOLUME_DEFAULT_PERCENTAGE;
+            }
+            else
+            {
+                Debug.WriteLine(
+                    $"Current Volume: {CurrentPlayer.Volume}\nIs Muted: {CurrentPlayer.Mute}\nPlayer Created: {mediaPlayerHasBeenCreated}"
+                );
+                TBVolumeBar.Value = CurrentPlayer.Volume;
+            }
+
+            mediaPlayerHasBeenCreated = true;
             return CurrentPlayer!;
         }
 
@@ -112,7 +133,7 @@ namespace WINFORMS_VLCClient.Forms
             VPTMainTimeline.PreviousButtonClicked += (_, _) =>
                 PrevButton?.Invoke(this, EventArgs.Empty);
 
-            TBVolumeBar.ValueChanged += ChangeVolumeEvent;
+            TBVolumeBar.ValueChanged += TrackBarChangedPosition;
 
             BRecordIntro.Click += DoMarkSkipIntro;
             BSkipIntro.Click += DoSkipIntro;
@@ -126,7 +147,7 @@ namespace WINFORMS_VLCClient.Forms
 
             PSkipIntroButtonContainer.Show();
             MKRIntroSkip.Hide();
-            CleanupDoMarkSkipIntro(null, null);
+            CleanupDoMarkSkipIntro(null, null!);
 
             pollTimer = new() { Interval = POLL_RATE_MS };
             pollTimer.Tick += (_, _) => PollingTick();
@@ -140,10 +161,7 @@ namespace WINFORMS_VLCClient.Forms
             player.Play(media);
 
             if (startingPosition != null)
-                player.Time = startingPosition.ToMS();
-
-            if (CurrentPlayer?.Mute ?? false)
-                VPTMainTimeline.ShowVolumeIsMuted();
+                SetPlayerTime(startingPosition.ToMS());
         }
 
         void SeekMediaMouseEvent(object? sender, MouseEventArgs e)
@@ -165,21 +183,15 @@ namespace WINFORMS_VLCClient.Forms
                 CurrentPlayer.Play();
             }
 
-            CurrentPlayer.Time = requestedTime;
+            SetPlayerTime(requestedTime);
         }
 
-        void ChangeVolumeEvent(object? sender, EventArgs e)
+        void TrackBarChangedPosition(object? sender, EventArgs e)
         {
             if (sender is not TrackBar tb || CurrentPlayer == null)
                 return;
 
-            var newVol = int.Clamp(tb.Value, 0, 100);
-            CurrentPlayer.Volume = newVol;
-
-            if ((newVol == 0 || CurrentPlayer.Mute) && !VPTMainTimeline.IsVolumeMutedShown())
-                VPTMainTimeline.ShowVolumeIsMuted();
-            else if (VPTMainTimeline.IsVolumeMutedShown() && !CurrentPlayer.Mute)
-                VPTMainTimeline.ShowVolumeIsPlaying();
+            SetPlayerVolume(tb.Value);
         }
 
         void ScrollWheelSeek(object? sender, MouseEventArgs e)
@@ -187,11 +199,10 @@ namespace WINFORMS_VLCClient.Forms
             if (CurrentPlayer == null)
                 return;
 
-            // Dude VLCLib is really quite awful oh my god
             if (e.Delta < 0)
-                ThreadPool.QueueUserWorkItem((_) => CurrentPlayer.Time += SCROLL_SEEK_MS);
+                SetPlayerTime(CurrentPlayer.Time + SCROLL_SEEK_MS);
             else
-                ThreadPool.QueueUserWorkItem((_) => CurrentPlayer.Time -= SCROLL_SEEK_MS);
+                SetPlayerTime(CurrentPlayer.Time - SCROLL_SEEK_MS);
         }
 
         void PollingTick()
@@ -227,7 +238,7 @@ namespace WINFORMS_VLCClient.Forms
             if (intro == null)
                 return;
 
-            CurrentPlayer.Time = CurrentPlayer.Time + intro.diff.ToMS();
+            SetPlayerTime(CurrentPlayer.Time + intro.diff.ToMS());
         }
 
         void ConfirmIntro(object? sender, MarkerEventArgs e)
@@ -259,7 +270,7 @@ namespace WINFORMS_VLCClient.Forms
 
         void SetTimelineState(bool to)
         {
-            if (!to && isCursorInForm(this))
+            if (!to && IsCursorInForm(this))
                 return;
 
             foreach (var control in allTheThingsThatNeedToAppearOnHover)
@@ -305,61 +316,97 @@ namespace WINFORMS_VLCClient.Forms
         void OnTimeChange(object? sender, MediaPlayerTimeChangedEventArgs e)
         {
             if (
-                this.Disposing
-                || this.IsDisposed
-                || VPTMainTimeline.Disposing
+                VPTMainTimeline.Disposing
                 || VPTMainTimeline.IsDisposed
                 || CurrentPlayer == null
                 || CurrentPlayer.Length == 0
-                || !this.IsHandleCreated
             )
                 return;
 
-            try
-            {
-                Invoke(() =>
+            RunSafeInvoke(
+                this,
+                () =>
                 {
                     var currentTime = Timestamp.FromMS(e.Time);
-                    VPTMainTimeline.SetDisplayedVideoTime(
-                        currentTime,
-                        Timestamp.FromMS(CurrentPlayer.Length)
-                    );
-                    VPTMainTimeline.SetBarPosition((int)(100 * e.Time / (CurrentPlayer.Length)));
-                });
-            }
-            catch (ObjectDisposedException)
-            {
-                Debug.WriteLine("Object was disposed mid-Invoke!");
-                Debug.WriteLine(e);
-            }
+                    long? len = CurrentPlayer.Length;
+
+                    VPTMainTimeline.SetDisplayedVideoTime(currentTime, Timestamp.FromMS((long)len));
+                    VPTMainTimeline.SetBarPosition((int)((100 * e.Time) / (long)len));
+                }
+            );
         }
 
-        Timer? volumeDebouncer;
+        void VVMainView_Click(object sender, EventArgs e) => TogglePausedState();
 
-        void ChangeVolumeDebounced(int to)
+        void TogglePausedState()
         {
-            if (volumeDebouncer == null)
-            {
-                volumeDebouncer = new Timer { Interval = VOLUME_DEBOUNCE_TIME_MS };
-                volumeDebouncer.Tick += (_, _) =>
-                {
-                    if (CurrentPlayer != null)
-                    {
-                        int newVolume = Math.Max(0, Math.Min(100, CurrentPlayer.Volume + to));
-                        TBVolumeBar.Value = newVolume;
-                        CurrentPlayer.Volume = newVolume;
-                        Debug.WriteLine("Volume Changed!");
-                    }
+            if (CurrentPlayer == null)
+                return;
 
-                    volumeDebouncer?.Stop();
-                    volumeDebouncer?.Dispose();
-                    volumeDebouncer = null;
-                };
-            }
-
-            volumeDebouncer.Stop();
-            volumeDebouncer.Start();
+            SetPausedState(!CurrentPlayer.IsPlaying);
         }
+
+        void SetPausedState(bool to) =>
+            RunInThreadPool(
+                (_) =>
+                {
+                    if (CurrentPlayer == null)
+                        return;
+
+                    RunSafeInvoke(
+                        VPTMainTimeline,
+                        () =>
+                        {
+                            if (VPTMainTimeline.IsVideoPausedShown())
+                                VPTMainTimeline.ShowVideoIsPlaying();
+                            else
+                                VPTMainTimeline.ShowVideoIsPaused();
+                        }
+                    );
+
+                    CurrentPlayer.Pause();
+                }
+            );
+
+        void SetPlayerVolume(int to) =>
+            RunInThreadPool(
+                (_) =>
+                {
+                    if (CurrentPlayer == null)
+                        return;
+
+                    int newVolume = Math.Max(0, Math.Min(100, CurrentPlayer.Volume + to));
+
+                    RunSafeInvoke(
+                        this,
+                        () =>
+                        {
+                            if (
+                                (newVolume == 0 || CurrentPlayer.Mute)
+                                && !VPTMainTimeline.IsVolumeMutedShown()
+                            )
+                                VPTMainTimeline.ShowVolumeIsMuted();
+                            else if (VPTMainTimeline.IsVolumeMutedShown() && !CurrentPlayer.Mute)
+                                VPTMainTimeline.ShowVolumeIsPlaying();
+                        }
+                    );
+
+                    TBVolumeBar.Value = newVolume;
+                    CurrentPlayer.Volume = newVolume;
+                },
+                $"Volume Change: {CurrentPlayer?.Volume}->{to}"
+            );
+
+        void SetPlayerTime(long to) =>
+            RunInThreadPool(
+                (_) =>
+                {
+                    if (CurrentPlayer == null)
+                        return;
+
+                    CurrentPlayer.Time = to;
+                }
+            );
 
         protected override bool ProcessCmdKey(ref Message msg, Keys keydata)
         {
@@ -370,16 +417,16 @@ namespace WINFORMS_VLCClient.Forms
             {
                 case Keys.Right:
                 {
-                    CurrentPlayer.Time = CurrentPlayer.Time + ARROW_SEEK_MS;
+                    SetPlayerTime(CurrentPlayer.Time + ARROW_SEEK_MS);
                     return true;
                 }
                 case Keys.Left:
                 {
-                    CurrentPlayer.Time = CurrentPlayer.Time - ARROW_SEEK_MS;
+                    SetPlayerTime(CurrentPlayer.Time = CurrentPlayer.Time - ARROW_SEEK_MS);
                     return true;
                 }
                 case Keys.Up:
-                    ChangeVolumeDebounced(ARROW_VOLUME_CHANGE_PERCENT);
+                    SetPlayerVolume(VOLUME_ARROW_CHANGE_PERCENT);
 
                     if (CurrentPlayer.Volume == 100)
                         return true;
@@ -387,7 +434,7 @@ namespace WINFORMS_VLCClient.Forms
                     return false;
 
                 case Keys.Down:
-                    ChangeVolumeDebounced(-ARROW_VOLUME_CHANGE_PERCENT);
+                    SetPlayerVolume(-VOLUME_ARROW_CHANGE_PERCENT);
 
                     if (CurrentPlayer.Volume == 0)
                         return true;
@@ -406,16 +453,12 @@ namespace WINFORMS_VLCClient.Forms
 
             VVMainView.MediaPlayer = null;
             //Insane Workaround because VLC is really quite terrible
-            ThreadPool.QueueUserWorkItem(_ =>
+            RunInThreadPool(_ =>
             {
                 player.TimeChanged -= OnTimeChange;
                 player.Stop();
                 player.Dispose();
             });
         }
-
-        private void PSkipIntroFullContainer_Paint(object sender, PaintEventArgs e) { }
-
-        private void VVMainView_Click(object sender, EventArgs e) { }
     }
 }

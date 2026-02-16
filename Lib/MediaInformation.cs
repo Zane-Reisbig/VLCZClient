@@ -16,7 +16,7 @@ namespace WINFORMS_VLCClient.Lib.MediaInformation
 
     public class MediaInformation(Uri? path, StandardDefinitions.Timestamp timestamp)
     {
-        Uri? filePath = path;
+        readonly Uri? filePath = path;
         public Uri? FilePath
         {
             get => filePath;
@@ -44,6 +44,7 @@ namespace WINFORMS_VLCClient.Lib.MediaInformation
         public StandardDefinitions.Timestamp Timestamp
         {
             get => timestamp;
+            set => timestamp = value;
         }
 
         string AsINIString()
@@ -60,16 +61,11 @@ namespace WINFORMS_VLCClient.Lib.MediaInformation
                 MediaInformationSerializationType.INI
         )
         {
-            string? output;
-            switch (serializationType)
+            string? output = serializationType switch
             {
-                case MediaInformationSerializationType.INI:
-                    output = AsINIString();
-                    break;
-                default:
-                    throw new Exception($"Output type: \"{serializationType}\" is unknown!");
-            }
-
+                MediaInformationSerializationType.INI => AsINIString(),
+                _ => throw new Exception($"Output type: \"{serializationType}\" is unknown!"),
+            };
             try
             {
                 File.WriteAllText(path, output);

@@ -6,16 +6,10 @@ using System.Threading.Tasks;
 
 namespace WINFORMS_VLCClient.Lib.ComponentCycler
 {
-    public class ComponentCycler
+    public class ComponentCycler(Control[] controls)
     {
-        Control[] controls;
-        int index;
-
-        public ComponentCycler(Control[] controls)
-        {
-            this.controls = controls;
-            index = 0;
-        }
+        private readonly Control[] controls = controls;
+        int index = 0;
 
         public void ShowAtSlot(int slot)
         {
@@ -44,7 +38,7 @@ namespace WINFORMS_VLCClient.Lib.ComponentCycler
 
         public int GetSlot() => index;
 
-        void ToggleControl(Control control, bool state)
+        static void ToggleControl(Control control, bool state)
         {
             control.Visible = state;
             control.Enabled = state;

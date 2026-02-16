@@ -9,27 +9,19 @@ using static ClientLib.STD.StandardDefinitions;
 
 namespace WINFORMS_VLCClient.Lib
 {
-    public class Intro
+    public class Intro(
+        Timestamp introStart,
+        Timestamp introStop,
+        Timestamp diff,
+        string directoryName
+    )
     {
-        public static string IntroFileNameSearchString = "intros.txt";
+        public const string IntroFileNameSearchString = "intros.txt";
         public bool isMaster;
-        public string uri;
-        public Timestamp introStart;
-        public Timestamp introStop;
-        public Timestamp diff;
-
-        public Intro(
-            Timestamp introStart,
-            Timestamp introStop,
-            Timestamp diff,
-            string directoryName
-        )
-        {
-            this.introStart = introStart;
-            this.introStop = introStop;
-            this.uri = directoryName;
-            this.diff = diff;
-        }
+        public string uri = directoryName;
+        public Timestamp introStart = introStart;
+        public Timestamp introStop = introStop;
+        public Timestamp diff = diff;
 
         public static Intro? GetIntroFromDirectory(string directory)
         {
@@ -62,7 +54,7 @@ namespace WINFORMS_VLCClient.Lib
 
             return new Intro(
                 Timestamp.FromString(introStart_raw),
-                Timestamp.FromString(introStart_raw),
+                Timestamp.FromString(introStop_raw),
                 Timestamp.FromString(diff_raw),
                 new Uri(uri).LocalPath
             );

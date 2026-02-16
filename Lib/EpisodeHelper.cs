@@ -17,7 +17,7 @@ namespace WINFORMS_VLCClient.Lib
 
         static string? GetRelativeFile(string currentFilePath, int relativeIndex)
         {
-            Uri path = new Uri(currentFilePath);
+            Uri path = new(currentFilePath);
             if (!Path.Exists(path.LocalPath))
             {
                 Debug.WriteLine(
@@ -27,11 +27,13 @@ namespace WINFORMS_VLCClient.Lib
             }
 
             string targetExtension = Path.GetExtension(path.LocalPath);
-            List<string> files = Directory
-                .GetFiles(Directory.GetParent(path.LocalPath)!.FullName)
-                .OrderBy(f => f)
-                .Where(f => Path.GetExtension(f) == targetExtension)
-                .ToList();
+            List<string> files =
+            [
+                .. Directory
+                    .GetFiles(Directory.GetParent(path.LocalPath)!.FullName)
+                    .OrderBy(f => f)
+                    .Where(f => Path.GetExtension(f) == targetExtension),
+            ];
             int index = files.IndexOf(currentFilePath);
 
             if (index == -1)
