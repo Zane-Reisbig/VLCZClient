@@ -6,6 +6,7 @@ using LibVLCSharp.Shared;
 using LibVLCSharp.WinForms;
 using WINFORMS_VLCClient.Controls;
 using WINFORMS_VLCClient.Forms;
+using WINFORMS_VLCClient.Lib;
 using WINFORMS_VLCClient.Lib.MediaInformation;
 
 namespace WINFORMS_VLCClient
@@ -14,7 +15,7 @@ namespace WINFORMS_VLCClient
     {
         static readonly string historyFileName = "history.txt";
 
-        string HistoryPath
+        static string HistoryPath
         {
             get => Path.Combine(Environment.CurrentDirectory, historyFileName);
         }
@@ -38,9 +39,7 @@ namespace WINFORMS_VLCClient
         {
             get
             {
-                if (lastWatched == null)
-                    lastWatched = GetLastWatched();
-
+                lastWatched ??= GetLastWatched();
                 return lastWatched;
             }
             set
@@ -48,6 +47,17 @@ namespace WINFORMS_VLCClient
                 lastWatched = value;
                 lastWatched.WriteToFile(HistoryPath);
             }
+        }
+
+        Point? videoViewFormRestorePosition = null;
+
+        void RestoreLocationHook(object? sender, EventArgs e)
+        {
+            if (sender is not Viewer view)
+                return;
+
+            view.Location = videoViewFormRestorePosition ?? view.Location;
+            view.Shown -= RestoreLocationHook;
         }
 
         Viewer? videoViewForm;
@@ -58,6 +68,17 @@ namespace WINFORMS_VLCClient
                 if (videoViewForm == null || videoViewForm.IsDisposed)
                 {
                     videoViewForm = new(this);
+                    videoViewForm.Shown += RestoreLocationHook;
+                    videoViewForm.MediaStopped += (_, _) => ChangeMedia(forward: true);
+                    videoViewForm.NextButton += (_, _) => ChangeMedia(forward: true);
+                    videoViewForm.PrevButton += (_, _) => ChangeMedia(forward: false);
+                    videoViewForm.FormClosing += (object? sender, FormClosingEventArgs e) =>
+                    {
+                        if (sender is not Viewer viewForm)
+                            return;
+
+                        videoViewFormRestorePosition = viewForm.lastRegisteredLocation;
+                    };
                     videoViewForm.FormClosed += (_, _) =>
                     {
                         FillLastWatched(LastWatched);
@@ -75,16 +96,28 @@ namespace WINFORMS_VLCClient
         {
             get
             {
-                if (fileDialog == null)
+                fileDialog ??= new()
                 {
-                    fileDialog = new();
-                    fileDialog.InitialDirectory = "C://";
-                    fileDialog.Filter =
-                        "Video Files|*.mp4;*.mov;*.wmv;*.avi;*.mkv;*.flv|All Files (*.*)|*.*";
-                }
+                    InitialDirectory = "C://",
+                    Filter = "Video Files|*.mp4;*.mov;*.wmv;*.avi;*.mkv;*.flv|All Files (*.*)|*.*",
+                };
 
                 return fileDialog;
             }
+        }
+
+        static void CreateNewHistory() =>
+            StandardDefinitions.WriteDictToINIFile<string, string>(
+                HistoryPath,
+                new() { { "path", "None" }, { "timestamp", "None" } }
+            );
+
+        static MediaInformation GetLastWatched()
+        {
+            if (!Path.Exists(HistoryPath))
+                CreateNewHistory();
+
+            return MediaInformation.ReadFromINI(HistoryPath);
         }
 
         public Landing()
@@ -98,22 +131,29 @@ namespace WINFORMS_VLCClient
                 BContinueLast.Enabled = false;
         }
 
-        public MediaPlayer MakeMediaPlayer() => new MediaPlayer(VLCLib);
+        public MediaPlayer MakeMediaPlayer() => new(VLCLib);
 
-        void CreateNewHistory()
+        public void ChangeMedia(bool forward)
         {
-            string contents = "path=None\n";
-            contents += "timestamp=None\n";
+            if (LastWatched.FilePath == null)
+                return;
 
-            File.WriteAllText(HistoryPath, contents);
-        }
+            var nextEpisode = forward
+                ? EpisodeHelper.GetNextFileAlphOrder(LastWatched.FilePath.LocalPath)
+                : EpisodeHelper.GetPrevFileAlphOrder(LastWatched.FilePath.LocalPath);
 
-        MediaInformation GetLastWatched()
-        {
-            if (!Path.Exists(HistoryPath))
-                CreateNewHistory();
+            if (nextEpisode == LastWatched.FilePath.LocalPath || nextEpisode == null)
+                return;
 
-            return MediaInformation.ReadFromINI(HistoryPath);
+            VideoViewForm.Close();
+            VideoViewForm.PlayMedia(new Media(VLCLib, nextEpisode!));
+
+            if (!VideoViewForm.Visible)
+            {
+                VideoViewForm.Show();
+                if (videoViewFormRestorePosition != null)
+                    VideoViewForm.Location = (Point)videoViewFormRestorePosition;
+            }
         }
 
         void FillLastWatched(MediaInformation source)

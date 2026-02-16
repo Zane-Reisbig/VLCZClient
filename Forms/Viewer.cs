@@ -14,6 +14,7 @@ using ClientLib.STD;
 using LibVLCSharp.Shared;
 using LibVLCSharp.WinForms;
 using WINFORMS_VLCClient.Controls;
+using WINFORMS_VLCClient.Lib;
 using WINFORMS_VLCClient.Lib.MediaInformation;
 using static ClientLib.STD.StandardDefinitions;
 //
@@ -24,15 +25,26 @@ namespace WINFORMS_VLCClient.Forms
     public partial class Viewer : Form
     {
         static readonly int POLL_RATE_MS = 900;
-        static readonly int SCROLL_SEEK_MS = 500;
         static readonly int ARROW_SEEK_MS = 10 * 1000;
+        static readonly int SCROLL_SEEK_MS = 500;
+        static readonly int VOLUME_DEBOUNCE_TIME_MS = 500;
         static readonly int ARROW_VOLUME_CHANGE_PERCENT = 1;
 
-        Landing parent;
+        public static readonly Size VIEWER_MINIUM_SIZE = new(800, 600);
+        static readonly Size ContainerSizeButtons = new(104, 59);
+        static readonly Size ContainerSizeMarker = new(249, 74);
+        static readonly Point ContainerLocationButtons = new(189, 485);
+        static readonly Point ContainerLocationMarker = new(36, 475);
 
-        Timer pollTimer;
+        readonly Landing parent;
+        readonly Timer pollTimer;
+        readonly Control[] allTheThingsThatNeedToAppearOnHover;
 
-        Control[] allTheThingsThatNeedToAppearOnHover;
+        public EventHandler? MediaStopped;
+        public EventHandler? NextButton;
+        public EventHandler? PrevButton;
+        public Point lastRegisteredLocation;
+
         MediaPlayer? CurrentPlayer => VVMainView.MediaPlayer;
 
         MediaPlayer GetNewMediaPlayer()
@@ -42,40 +54,82 @@ namespace WINFORMS_VLCClient.Forms
 
             VVMainView.MediaPlayer = parent!.MakeMediaPlayer();
             CurrentPlayer!.TimeChanged += OnTimeChange;
+            CurrentPlayer!.EndReached += (_, _) =>
+            {
+                Invoke(() =>
+                {
+                    if (this.Disposing || this.IsDisposed || !this.IsHandleCreated)
+                        return;
+
+                    Debug.WriteLine("End Reached!");
+                    MediaStopped?.Invoke(this, EventArgs.Empty);
+                });
+            };
+
+            CurrentPlayer!.EnableKeyInput = false;
+            CurrentPlayer!.EnableMouseInput = false;
+            CurrentPlayer!.Volume = TBVolumeBar.Value;
             return CurrentPlayer!;
         }
 
         public VideoPlaybackTimeline Timeline => this.VPTMainTimeline;
+        public string? PlayingMediaParentFolder =>
+            CurrentPlayer != null && CurrentPlayer.Media != null
+                ? new Uri(Path.GetDirectoryName(CurrentPlayer.Media.Mrl)!).LocalPath
+                : null;
 
         public Viewer(Landing _parent)
         {
             InitializeComponent();
-            this.KeyPreview = true;
-            allTheThingsThatNeedToAppearOnHover = [VPTMainTimeline];
-
             parent = _parent;
+
+            this.MinimumSize = VIEWER_MINIUM_SIZE;
+            this.KeyPreview = true;
             this.FormClosing += (_, _) =>
             {
+                pollTimer?.Stop();
                 pollTimer?.Dispose();
                 Cleanup();
             };
 
-            this.MouseEnter += ShowTimeline;
-            this.MouseLeave += HideTimeline;
+            allTheThingsThatNeedToAppearOnHover =
+            [
+                VPTMainTimeline,
+                TBVolumeBar,
+                PSkipIntroFullContainer,
+            ];
 
             VVMainView.MouseEnter += ShowTimeline;
             VVMainView.MouseLeave += HideTimeline;
 
             VPTMainTimeline.MouseDidMove += SeekMediaMouseEvent;
+            VPTMainTimeline.MouseEnter += ShowTimeline;
             VPTMainTimeline.ScrollWheelScrolled += ScrollWheelSeek;
             VPTMainTimeline.MuteButtonClicked += (_, _) => CurrentPlayer?.ToggleMute();
             VPTMainTimeline.PauseButtonClicked += (_, _) => CurrentPlayer?.Pause();
+            VPTMainTimeline.NextButtonClicked += (_, _) =>
+                NextButton?.Invoke(this, EventArgs.Empty);
+            VPTMainTimeline.PreviousButtonClicked += (_, _) =>
+                PrevButton?.Invoke(this, EventArgs.Empty);
 
             TBVolumeBar.ValueChanged += ChangeVolumeEvent;
 
+            BRecordIntro.Click += DoMarkSkipIntro;
+            BSkipIntro.Click += DoSkipIntro;
+
+            MKRIntroSkip.TimestampGetter = () =>
+                CurrentPlayer != null ? Timestamp.FromMS(CurrentPlayer.Time) : null;
+
+            MKRIntroSkip.MarkConfirmed += ConfirmIntro;
+
+            MKRIntroSkip.ExitButtonClicked += CleanupDoMarkSkipIntro;
+
+            PSkipIntroButtonContainer.Show();
+            MKRIntroSkip.Hide();
+            CleanupDoMarkSkipIntro(null, null);
+
             pollTimer = new() { Interval = POLL_RATE_MS };
-            //pollTimer.Tick += HideTimeline;
-            pollTimer.Tick += (_, _) => WriteTimeStamp();
+            pollTimer.Tick += (_, _) => PollingTick();
             pollTimer.Start();
         }
 
@@ -94,26 +148,16 @@ namespace WINFORMS_VLCClient.Forms
 
         void SeekMediaMouseEvent(object? sender, MouseEventArgs e)
         {
-            if (CurrentPlayer == null)
-                return;
-
-            if (e.Button != MouseButtons.Left)
+            if (CurrentPlayer == null || e.Button != MouseButtons.Left)
                 return;
 
             var mediaSize = CurrentPlayer.Length;
             if (mediaSize == 0)
                 return;
 
-            float requestedPercentage = VPTMainTimeline.ClickPointToBarPercentage(e.Location);
-            long requestedTime = (long)(mediaSize * requestedPercentage);
-            int barPostion = (int)(100 * requestedPercentage);
-
-            //Debug.WriteLine($"Requested Percentage: {requestedPercentage}");
-            //Debug.WriteLine($"Media Size: {mediaSize}");
-            //Debug.WriteLine($"Requested Time: {requestedTime}");
-            //Debug.WriteLine($"Bar Postion: {barPostion}");
-            //Debug.WriteLine($"Have Media: {CurrentPlayer.Media != null}");
-            //Debug.WriteLine($"Media Current Time: {CurrentPlayer.Time}");
+            long requestedTime = (long)(
+                mediaSize * VPTMainTimeline.ClickPointToBarPercentage(e.Location)
+            );
 
             if (CurrentPlayer.Time == CurrentPlayer.Length)
             {
@@ -149,7 +193,7 @@ namespace WINFORMS_VLCClient.Forms
                 CurrentPlayer.Time = CurrentPlayer.Time - SCROLL_SEEK_MS;
         }
 
-        void WriteTimeStamp()
+        void PollingTick()
         {
             if (CurrentPlayer == null || CurrentPlayer.Media == null)
                 return;
@@ -158,27 +202,103 @@ namespace WINFORMS_VLCClient.Forms
                 new Uri(CurrentPlayer.Media.Mrl),
                 Timestamp.FromMS(CurrentPlayer.Time)
             );
+
+            this.lastRegisteredLocation = this.Location;
+
+            SetTimelineState(false);
         }
 
-        void ShowTimeline(object? sender, EventArgs e)
+        Intro? GetIntroForCurrentMedia()
         {
-            foreach (var control in allTheThingsThatNeedToAppearOnHover)
+            if (CurrentPlayer == null || CurrentPlayer.Media == null)
+                return null;
+
+            return Intro.GetIntroFromDirectory(PlayingMediaParentFolder!);
+        }
+
+        void DoSkipIntro(object? sender, EventArgs e)
+        {
+            string? mPath = PlayingMediaParentFolder;
+            if (mPath == null || CurrentPlayer == null || !CurrentPlayer.IsPlaying)
+                return;
+
+            var intro = Intro.GetIntroFromDirectory(mPath);
+            if (intro == null)
+                return;
+
+            CurrentPlayer.Time = CurrentPlayer.Time + intro.diff.ToMS();
+        }
+
+        void ConfirmIntro(object? sender, MarkerEventArgs e)
+        {
+            string? mPath = PlayingMediaParentFolder;
+            if (mPath == null)
+                return;
+
+            var haveIntro = GetIntroForCurrentMedia();
+            if (haveIntro != null)
             {
-                control.Enabled = true;
-                control.Visible = true;
+                // Confirm Overwrite here
             }
+
+            File.WriteAllText(
+                path: Intro.GetIntroPathForDirectory(mPath)!,
+                new Intro(
+                    e.one,
+                    e.two,
+                    e.diff,
+                    directoryName: CurrentPlayer!.Media!.Mrl
+                ).ToINIString()
+            );
         }
 
-        void HideTimeline(object? sender, EventArgs e)
+        void ShowTimeline(object? sender, EventArgs e) => SetTimelineState(true);
+
+        void HideTimeline(object? sender, EventArgs e) => SetTimelineState(false);
+
+        void SetTimelineState(bool to)
         {
-            if (isCursorInForm(this))
+            if (!to && isCursorInForm(this))
                 return;
 
             foreach (var control in allTheThingsThatNeedToAppearOnHover)
             {
-                control.Enabled = false;
-                control.Visible = false;
+                if (control.Enabled != to)
+                    control.Enabled = to;
+
+                if (control.Visible != to)
+                    control.Visible = to;
             }
+        }
+
+        void DoMarkSkipIntro(object? sender, EventArgs e)
+        {
+            if (PSkipIntroButtonContainer.Visible)
+                PSkipIntroButtonContainer.Hide();
+
+            PSkipIntroFullContainer.Size = ContainerSizeMarker;
+            PSkipIntroFullContainer.Location = ContainerLocationMarker;
+
+            MKRIntroSkip.Show();
+
+            if (PlayingMediaParentFolder != null)
+            {
+                Intro? haveIntro = Intro.GetIntroFromDirectory(PlayingMediaParentFolder);
+                if (haveIntro != null)
+                    MKRIntroSkip.SetTotalTextTime(haveIntro.diff.GetFormat());
+            }
+        }
+
+        void CleanupDoMarkSkipIntro(object? sender, EventArgs e)
+        {
+            if (MKRIntroSkip.Visible)
+                MKRIntroSkip.Hide();
+
+            PSkipIntroFullContainer.Size = ContainerSizeButtons;
+            PSkipIntroFullContainer.Location = ContainerLocationButtons;
+
+            PSkipIntroButtonContainer.Show();
+            MKRIntroSkip.ResetState();
         }
 
         void OnTimeChange(object? sender, MediaPlayerTimeChangedEventArgs e)
@@ -188,6 +308,9 @@ namespace WINFORMS_VLCClient.Forms
                 || this.IsDisposed
                 || VPTMainTimeline.Disposing
                 || VPTMainTimeline.IsDisposed
+                || CurrentPlayer == null
+                || CurrentPlayer.Length == 0
+                || !this.IsHandleCreated
             )
                 return;
 
@@ -198,16 +321,15 @@ namespace WINFORMS_VLCClient.Forms
                     var currentTime = Timestamp.FromMS(e.Time);
                     VPTMainTimeline.SetDisplayedVideoTime(
                         currentTime,
-                        Timestamp.FromMS(CurrentPlayer?.Length ?? 0)
+                        Timestamp.FromMS(CurrentPlayer.Length)
                     );
-                    VPTMainTimeline.SetBarPosition(
-                        (int)(100 * e.Time / (CurrentPlayer?.Length ?? 1))
-                    );
+                    VPTMainTimeline.SetBarPosition((int)(100 * e.Time / (CurrentPlayer.Length)));
                 });
             }
             catch (ObjectDisposedException)
             {
-                Debug.WriteLine("Somehow we've disposed of the object inside the invoke statement");
+                Debug.WriteLine("Object was disposed mid-Invoke!");
+                Debug.WriteLine(e);
             }
         }
 
@@ -217,7 +339,7 @@ namespace WINFORMS_VLCClient.Forms
         {
             if (volumeDebouncer == null)
             {
-                volumeDebouncer = new Timer { Interval = 50 };
+                volumeDebouncer = new Timer { Interval = VOLUME_DEBOUNCE_TIME_MS };
                 volumeDebouncer.Tick += (_, _) =>
                 {
                     if (CurrentPlayer != null)
@@ -257,10 +379,18 @@ namespace WINFORMS_VLCClient.Forms
                 }
                 case Keys.Up:
                     ChangeVolumeDebounced(ARROW_VOLUME_CHANGE_PERCENT);
+
+                    if (CurrentPlayer.Volume == 100)
+                        return true;
+
                     return false;
 
                 case Keys.Down:
                     ChangeVolumeDebounced(-ARROW_VOLUME_CHANGE_PERCENT);
+
+                    if (CurrentPlayer.Volume == 0)
+                        return true;
+
                     return false;
             }
 
@@ -282,5 +412,9 @@ namespace WINFORMS_VLCClient.Forms
                 player.Dispose();
             });
         }
+
+        private void PSkipIntroFullContainer_Paint(object sender, PaintEventArgs e) { }
+
+        private void VVMainView_Click(object sender, EventArgs e) { }
     }
 }

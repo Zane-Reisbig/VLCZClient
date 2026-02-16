@@ -24,6 +24,8 @@ namespace WINFORMS_VLCClient.Controls
         public EventHandler<MouseEventArgs>? MouseDidMove;
         public EventHandler? MuteButtonClicked;
         public EventHandler? PauseButtonClicked;
+        public EventHandler? NextButtonClicked;
+        public EventHandler? PreviousButtonClicked;
 
         ComponentCycler PauseCycler;
         ComponentCycler MuteCycler;
@@ -83,6 +85,16 @@ namespace WINFORMS_VLCClient.Controls
         }
 
         private void VideoPlaybackTimeline_Load(object sender, EventArgs e) { }
+
+        private void LNextEpisode_Click(object sender, EventArgs e)
+        {
+            NextButtonClicked?.Invoke(this, EventArgs.Empty);
+        }
+
+        private void LPreviousEpisode_Click(object sender, EventArgs e)
+        {
+            PreviousButtonClicked?.Invoke(this, EventArgs.Empty);
+        }
     }
 
     public class TimelineChangedArgs(long originalPosition, long requestedPosition) : EventArgs

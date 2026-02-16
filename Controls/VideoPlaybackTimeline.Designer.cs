@@ -34,6 +34,8 @@
             LMuteButton = new Label();
             LUnMuteButton = new Label();
             LVideoTime = new Label();
+            LNextEpisode = new Label();
+            LPreviousEpisode = new Label();
             SuspendLayout();
             // 
             // PBVideoTimeline
@@ -111,6 +113,32 @@
             LVideoTime.TabIndex = 4;
             LVideoTime.Text = "00:00:00 | 00:00:00";
             // 
+            // LNextEpisode
+            // 
+            LNextEpisode.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            LNextEpisode.Font = new Font("Segoe UI", 18F);
+            LNextEpisode.Location = new Point(196, 33);
+            LNextEpisode.MaximumSize = new Size(32, 40);
+            LNextEpisode.Name = "LNextEpisode";
+            LNextEpisode.Size = new Size(32, 40);
+            LNextEpisode.TabIndex = 1;
+            LNextEpisode.Text = "⏭";
+            LNextEpisode.TextAlign = ContentAlignment.MiddleCenter;
+            LNextEpisode.Click += LNextEpisode_Click;
+            // 
+            // LPreviousEpisode
+            // 
+            LPreviousEpisode.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            LPreviousEpisode.Font = new Font("Segoe UI", 18F);
+            LPreviousEpisode.Location = new Point(164, 33);
+            LPreviousEpisode.MaximumSize = new Size(32, 40);
+            LPreviousEpisode.Name = "LPreviousEpisode";
+            LPreviousEpisode.Size = new Size(32, 40);
+            LPreviousEpisode.TabIndex = 1;
+            LPreviousEpisode.Text = "⏮";
+            LPreviousEpisode.TextAlign = ContentAlignment.MiddleCenter;
+            LPreviousEpisode.Click += LPreviousEpisode_Click;
+            // 
             // VideoPlaybackTimeline
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
@@ -118,6 +146,8 @@
             BackColor = SystemColors.ActiveCaptionText;
             Controls.Add(LVideoTime);
             Controls.Add(PBVideoTimeline);
+            Controls.Add(LPreviousEpisode);
+            Controls.Add(LNextEpisode);
             Controls.Add(LPlayButton);
             Controls.Add(LPauseButton);
             Controls.Add(LUnMuteButton);
@@ -138,5 +168,7 @@
         private Label LMuteButton;
         private Label LUnMuteButton;
         private Label LVideoTime;
+        private Label LNextEpisode;
+        private Label LPreviousEpisode;
     }
 }

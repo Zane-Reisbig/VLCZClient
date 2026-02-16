@@ -2,6 +2,9 @@
 <Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup />
   <ItemGroup>
+    <Compile Update="Controls\Marker.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
     <Compile Update="Controls\MediaInfomationPanel.cs">
       <SubType>UserControl</SubType>
     </Compile>

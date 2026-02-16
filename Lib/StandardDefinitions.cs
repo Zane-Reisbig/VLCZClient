@@ -17,13 +17,11 @@ namespace ClientLib.STD
 
         public static bool isCursorInForm(Form target)
         {
-            bool isValid = target.ContainsFocus;
-            if (!isValid)
+            if (target.IsDisposed || target.Disposing)
                 return false;
 
             var clientCursorPos = target.PointToClient(Cursor.Position);
-
-            return isValid && target.ClientRectangle.Contains(clientCursorPos);
+            return target.ClientRectangle.Contains(clientCursorPos);
         }
 
         public static string PadZero(object to, int maxLength = 2)
@@ -34,6 +32,40 @@ namespace ClientLib.STD
 
             string _out = new string('0', maxLength + strRep.Length) + strRep;
             return _out.Substring(_out.Length - maxLength);
+        }
+
+        public static Dictionary<string, string> ReadINIString(string source, char delimiter = '=')
+        {
+            var lines = source.Split("\n");
+
+            Dictionary<string, string> _out = new();
+            foreach (string line in lines)
+            {
+                if (line == "")
+                    continue;
+
+                var pairs = line.Split(delimiter);
+                if (pairs.Length != 2)
+                    throw new Exception($"Malformed K/V Pair!\nOffending: \"{line}\"");
+
+                _out[pairs[0]] = pairs[1];
+            }
+
+            return _out;
+        }
+
+        public static void WriteDictToINIFile<K, V>(
+            string path,
+            Dictionary<K, V> source,
+            char delimter = '='
+        )
+            where K : notnull
+        {
+            string fileContents = "";
+            foreach (var key in source.Keys)
+                fileContents += $"{key}{delimter}{source[key]}\n";
+
+            File.WriteAllText(path, fileContents);
         }
 
         public class Timestamp(int hours = 0, int minute = 0, int second = 0, int frames = 0)
@@ -47,8 +79,31 @@ namespace ClientLib.STD
                 return new Timestamp(hours, minutes, seconds, 0);
             }
 
-            public static Timestamp FromString(string source)
+            public static Timestamp Diff(Timestamp? source, Timestamp? other)
             {
+                if (source == null || other == null)
+                    return new Timestamp();
+
+                int diffFrames = source.frames - other.frames;
+                int diffSeconds = source.second - other.second;
+                int diffMinutes = source.minute - other.minute;
+                int diffHours = source.hours - other.hours;
+                //
+                // csharpier-ignore-start
+                if (diffFrames < 0) { diffFrames += 60; diffSeconds--; }
+                if (diffSeconds < 0) { diffSeconds += 60; diffMinutes--; }
+                if (diffMinutes < 0) { diffMinutes += 60; diffHours--; }
+                // csharpier-ignore-end
+                //
+
+                return new Timestamp(diffHours, diffMinutes, diffSeconds, diffFrames);
+            }
+
+            public static Timestamp FromString(string? source)
+            {
+                if (source == null)
+                    throw new Exception("Cannot make timestamp from null!");
+
                 if (source == "None")
                     return new Timestamp();
 
