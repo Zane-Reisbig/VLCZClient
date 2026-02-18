@@ -4,12 +4,12 @@ A Windows Forms video player built with LibVLCSharp.
 
 ## Features
 
-- Video playback using VLC's libvlc backend
-- Playback controls (play/pause, mute, timeline seeking)
-- Mouse wheel scrubbing through video
-- Watch history with timestamp persistence (resume where you left off)
+- Video Playback using VLC's libvlc backend
+- Playback Controls (play/pause, mute, timeline seeking)
+- Mouse Wheel scrubbing through video
+- Watch History with timestamp persistence (resume where you left off)
 - Skip Intro (after you mark it)
-- Auto Play Next in folder
+- Auto Play next in folder
 
 ## Requirements
 
