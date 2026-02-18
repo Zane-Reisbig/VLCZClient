@@ -8,6 +8,7 @@ using WINFORMS_VLCClient.Controls;
 using WINFORMS_VLCClient.Forms;
 using WINFORMS_VLCClient.Lib;
 using WINFORMS_VLCClient.Lib.MediaInformation;
+using static ClientLib.STD.StandardDefinitions;
 
 namespace WINFORMS_VLCClient
 {
@@ -51,13 +52,11 @@ namespace WINFORMS_VLCClient
 
         Point? videoViewFormRestorePosition = null;
 
-        void RestoreLocationHook(object? sender, EventArgs e)
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public Point? VideoViewFormRestorePosition
         {
-            if (sender is not Viewer view)
-                return;
-
-            view.Location = videoViewFormRestorePosition ?? view.Location;
-            view.Shown -= RestoreLocationHook;
+            private get => videoViewFormRestorePosition;
+            set => videoViewFormRestorePosition = value;
         }
 
         Viewer? videoViewForm;
@@ -72,13 +71,6 @@ namespace WINFORMS_VLCClient
                     videoViewForm.MediaStopped += (_, _) => ChangeMedia(forward: true);
                     videoViewForm.NextButton += (_, _) => ChangeMedia(forward: true);
                     videoViewForm.PrevButton += (_, _) => ChangeMedia(forward: false);
-                    videoViewForm.FormClosing += (sender, e) =>
-                    {
-                        if (sender is not Viewer viewForm)
-                            return;
-
-                        videoViewFormRestorePosition = viewForm.lastRegisteredLocation;
-                    };
                     videoViewForm.FormClosed += (_, _) =>
                     {
                         FillLastWatched(LastWatched);
@@ -129,6 +121,10 @@ namespace WINFORMS_VLCClient
 
             if (LastWatched.FilePath == null)
                 BContinueLast.Enabled = false;
+
+#if DEBUG
+            this.Text = "[DEBUG]";
+#endif
         }
 
         public MediaPlayer MakeMediaPlayer() => new(VLCLib);
@@ -145,15 +141,11 @@ namespace WINFORMS_VLCClient
             if (nextEpisode == LastWatched.FilePath.LocalPath || nextEpisode == null)
                 return;
 
+            this.LastWatched = new(new(nextEpisode), Timestamp.FromMS(0));
+
             VideoViewForm.Close();
             VideoViewForm.PlayMedia(new Media(VLCLib, nextEpisode!));
-
-            if (!VideoViewForm.Visible)
-            {
-                VideoViewForm.Show();
-                if (videoViewFormRestorePosition != null)
-                    VideoViewForm.Location = (Point)videoViewFormRestorePosition;
-            }
+            VideoViewForm.Show();
         }
 
         void FillLastWatched(MediaInformation source)
@@ -197,6 +189,21 @@ namespace WINFORMS_VLCClient
 
             if (!VideoViewForm.Visible)
                 VideoViewForm.Show();
+        }
+
+        void RestoreLocationHook(object? sender, EventArgs e)
+        {
+            if (sender is not Viewer view)
+                return;
+
+            if (VideoViewFormRestorePosition != null)
+                VideoViewForm.SetLocation((Point)VideoViewFormRestorePosition);
+            // Have to do this to get the VideoViewForm out of its null state
+            //  for the first launch
+            else
+                VideoViewForm.SetLocation(VideoViewForm.Location);
+
+            view.Shown -= RestoreLocationHook;
         }
     }
 }

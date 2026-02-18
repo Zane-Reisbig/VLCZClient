@@ -15,6 +15,8 @@ using LibVLCSharp.Shared;
 using LibVLCSharp.WinForms;
 using WINFORMS_VLCClient.Controls;
 using WINFORMS_VLCClient.Lib;
+using WINFORMS_VLCClient.Lib.FullScreen;
+using WINFORMS_VLCClient.Lib.Hotkeys;
 using WINFORMS_VLCClient.Lib.MediaInformation;
 using static ClientLib.STD.StandardDefinitions;
 //
@@ -43,33 +45,27 @@ namespace WINFORMS_VLCClient.Forms
         public EventHandler? MediaStopped;
         public EventHandler? NextButton;
         public EventHandler? PrevButton;
-        public Point lastRegisteredLocation;
 
         MediaPlayer? CurrentPlayer => VVMainView.MediaPlayer;
 
+        int systemHotkeyF9PauseID;
+        int systemHotkeyMediaPauseID;
         bool mediaPlayerHasBeenCreated = false;
+        bool hasBeenRepositioned = false;
+        bool isFullScreen = false;
 
         MediaPlayer GetNewMediaPlayer()
         {
             if (CurrentPlayer != null)
-                Cleanup();
+                CleanupPlayer();
 
             VVMainView.MediaPlayer = parent!.MakeMediaPlayer();
-            CurrentPlayer!.TimeChanged += OnTimeChange;
-            CurrentPlayer.EndReached += (_, _) =>
-            {
-                Invoke(() =>
-                {
-                    if (this.Disposing || this.IsDisposed || !this.IsHandleCreated)
-                        return;
-
-                    Debug.WriteLine("End Reached!");
-                    MediaStopped?.Invoke(this, EventArgs.Empty);
-                });
-            };
-
-            CurrentPlayer.EnableKeyInput = false;
+            CurrentPlayer!.EnableKeyInput = false;
             CurrentPlayer.EnableMouseInput = false;
+
+            CurrentPlayer.TimeChanged += OnTimeChange;
+            CurrentPlayer.EndReached += (_, _) =>
+                RunSafeInvoke(this, () => MediaStopped?.Invoke(this, EventArgs.Empty));
 
             if (
                 (CurrentPlayer.Volume == 0 || CurrentPlayer.Mute)
@@ -78,16 +74,11 @@ namespace WINFORMS_VLCClient.Forms
             )
             {
                 Debug.WriteLine("Set Volume to default");
-                CurrentPlayer.Volume = VOLUME_DEFAULT_PERCENTAGE;
+                SetPlayerVolume(VOLUME_DEFAULT_PERCENTAGE);
                 TBVolumeBar.Value = VOLUME_DEFAULT_PERCENTAGE;
             }
             else
-            {
-                Debug.WriteLine(
-                    $"Current Volume: {CurrentPlayer.Volume}\nIs Muted: {CurrentPlayer.Mute}\nPlayer Created: {mediaPlayerHasBeenCreated}"
-                );
                 TBVolumeBar.Value = CurrentPlayer.Volume;
-            }
 
             mediaPlayerHasBeenCreated = true;
             return CurrentPlayer!;
@@ -104,13 +95,30 @@ namespace WINFORMS_VLCClient.Forms
             InitializeComponent();
             parent = _parent;
 
+            systemHotkeyF9PauseID = new Random().Next(int.MaxValue);
+            HotkeyHelper.RegisterHotkey(
+                this.Handle,
+                systemHotkeyF9PauseID,
+                HotkeyHelper.MOD_ALT,
+                (uint)Keys.F9
+            );
+
+            systemHotkeyMediaPauseID = new Random().Next(int.MaxValue);
+            HotkeyHelper.RegisterHotkey(
+                this.Handle,
+                systemHotkeyMediaPauseID,
+                HotkeyHelper.MOD_NONE,
+                (uint)Keys.MediaPlayPause
+            );
+
             this.MinimumSize = VIEWER_MINIUM_SIZE;
             this.KeyPreview = true;
+            this.Disposed += OnDispose;
             this.FormClosing += (_, _) =>
             {
                 pollTimer?.Stop();
                 pollTimer?.Dispose();
-                Cleanup();
+                CleanupPlayer();
             };
 
             allTheThingsThatNeedToAppearOnHover =
@@ -136,33 +144,81 @@ namespace WINFORMS_VLCClient.Forms
             TBVolumeBar.ValueChanged += (_, _) =>
                 SetPlayerVolume(TBVolumeBar.Value, fromVolumeBar: true);
 
-            BRecordIntro.Click += DoMarkSkipIntro;
-            BSkipIntro.Click += DoSkipIntro;
-
+            MKRIntroSkip.MarkConfirmed += ConfirmIntro;
+            MKRIntroSkip.ExitButtonClicked += HideIntroSkipMaker;
             MKRIntroSkip.TimestampGetter = () =>
                 CurrentPlayer != null ? Timestamp.FromMS(CurrentPlayer.Time) : null;
-
-            MKRIntroSkip.MarkConfirmed += ConfirmIntro;
-
-            MKRIntroSkip.ExitButtonClicked += CleanupDoMarkSkipIntro;
-
-            PSkipIntroButtonContainer.Show();
             MKRIntroSkip.Hide();
-            CleanupDoMarkSkipIntro(null, null!);
+
+            BRecordIntro.Click += ShowIntroSkipMaker;
+            BSkipIntro.Click += DoSkipIntro;
+            PSkipIntroButtonContainer.Show();
+
+            HideIntroSkipMaker(null, null!);
 
             pollTimer = new() { Interval = POLL_RATE_MS };
             pollTimer.Tick += (_, _) => PollingTick();
             pollTimer.Start();
+
+#if DEBUG
+            this.Text = "Viewer - [DEBUG]";
+#endif
         }
 
         public void PlayMedia(Media media, Timestamp? startingPosition = null)
         {
             var player = GetNewMediaPlayer();
+            RunInThreadPool(
+                (_) =>
+                {
+                    // Have to do it this way to normalize the [media.Mrl]'s "URL-iffied" path characters
+                    var fileName = Path.GetFileName(new Uri(media.Mrl).LocalPath);
+#if DEBUG
+                    RunSafeInvoke(this, () => this.Text = $"[DEBUG] - {fileName}");
+#else
+                    RunSafeInvoke(this, () => this.Text = $"Viewer - {fileName}");
+#endif
 
-            player.Play(media);
+                    player.Play(media);
 
-            if (startingPosition != null)
-                SetPlayerTime(startingPosition.ToMS());
+                    if (startingPosition != null)
+                        player.Time = startingPosition.ToMS();
+                }
+            );
+
+            PollingTick();
+        }
+
+        public void SetLocation(Point position)
+        {
+            this.Location = position;
+            hasBeenRepositioned = true;
+        }
+
+        void PollingTick()
+        {
+            if (CurrentPlayer == null || CurrentPlayer.Media == null)
+                return;
+
+            parent.LastWatched = new(
+                new Uri(CurrentPlayer.Media.Mrl),
+                Timestamp.FromMS(CurrentPlayer.Time)
+            );
+
+            // Do it this way to avoid recording when the window pops up as a new window,
+            //  since we cant set the actual restore position.
+            if (hasBeenRepositioned)
+                parent.VideoViewFormRestorePosition = this.Location;
+
+            SetTimelineState(false);
+        }
+
+        Intro? GetIntroForCurrentMedia()
+        {
+            if (CurrentPlayer == null || CurrentPlayer.Media == null)
+                return null;
+
+            return Intro.GetIntroFromDirectory(PlayingMediaParentFolder!);
         }
 
         void SeekMediaMouseEvent(object? sender, MouseEventArgs e)
@@ -178,13 +234,16 @@ namespace WINFORMS_VLCClient.Forms
                 mediaSize * VPTMainTimeline.ClickPointToBarPercentage(e.Location)
             );
 
-            if (CurrentPlayer.Time == CurrentPlayer.Length)
+            if (requestedTime >= mediaSize)
             {
-                CurrentPlayer.Stop();
-                CurrentPlayer.Play();
+                const int REWIND_AFTER_END_MS = 10 * 1000;
+                SetPlayerTime(requestedTime - REWIND_AFTER_END_MS);
+                SetPausedState(true);
             }
-
-            SetPlayerTime(requestedTime);
+            else
+            {
+                SetPlayerTime(requestedTime);
+            }
         }
 
         void ScrollWheelSeek(object? sender, MouseEventArgs e)
@@ -196,29 +255,6 @@ namespace WINFORMS_VLCClient.Forms
                 SetPlayerTime(CurrentPlayer.Time + SCROLL_SEEK_MS);
             else
                 SetPlayerTime(CurrentPlayer.Time - SCROLL_SEEK_MS);
-        }
-
-        void PollingTick()
-        {
-            if (CurrentPlayer == null || CurrentPlayer.Media == null)
-                return;
-
-            parent.LastWatched = new(
-                new Uri(CurrentPlayer.Media.Mrl),
-                Timestamp.FromMS(CurrentPlayer.Time)
-            );
-
-            this.lastRegisteredLocation = this.Location;
-
-            SetTimelineState(false);
-        }
-
-        Intro? GetIntroForCurrentMedia()
-        {
-            if (CurrentPlayer == null || CurrentPlayer.Media == null)
-                return null;
-
-            return Intro.GetIntroFromDirectory(PlayingMediaParentFolder!);
         }
 
         void DoSkipIntro(object? sender, EventArgs e)
@@ -243,7 +279,14 @@ namespace WINFORMS_VLCClient.Forms
             var haveIntro = GetIntroForCurrentMedia();
             if (haveIntro != null)
             {
-                // Confirm Overwrite here
+                if (
+                    MessageBox.Show(
+                        $"Do you really want to overwrite the old intro time?\nOld intro: {haveIntro.diff.GetFormat()}\nNew intro: {e.diff.GetFormat()}",
+                        "Confirm Overwrite",
+                        MessageBoxButtons.YesNo
+                    ) != DialogResult.Yes
+                )
+                    return;
             }
 
             File.WriteAllText(
@@ -276,7 +319,7 @@ namespace WINFORMS_VLCClient.Forms
             }
         }
 
-        void DoMarkSkipIntro(object? sender, EventArgs e)
+        void ShowIntroSkipMaker(object? sender, EventArgs e)
         {
             if (PSkipIntroButtonContainer.Visible)
                 PSkipIntroButtonContainer.Hide();
@@ -294,7 +337,7 @@ namespace WINFORMS_VLCClient.Forms
             }
         }
 
-        void CleanupDoMarkSkipIntro(object? sender, EventArgs e)
+        void HideIntroSkipMaker(object? sender, EventArgs e)
         {
             if (MKRIntroSkip.Visible)
                 MKRIntroSkip.Hide();
@@ -329,7 +372,22 @@ namespace WINFORMS_VLCClient.Forms
             );
         }
 
-        void VVMainView_Click(object sender, EventArgs e) => TogglePausedState();
+        void VVMainView_Click(object sender, MouseEventArgs e)
+        {
+            if (e.Button != MouseButtons.Left)
+                return;
+
+            TogglePausedState();
+        }
+
+        void VVMainView_DoubleClick(object sender, MouseEventArgs e)
+        {
+            if (e.Button != MouseButtons.Left)
+                return;
+
+            ToggleWindowFullScreenState();
+            TogglePausedState();
+        }
 
         void TogglePausedState()
         {
@@ -343,8 +401,10 @@ namespace WINFORMS_VLCClient.Forms
             RunInThreadPool(
                 (_) =>
                 {
-                    if (CurrentPlayer == null)
+                    if (CurrentPlayer == null || to == CurrentPlayer.IsPlaying)
                         return;
+
+                    CurrentPlayer.Pause();
 
                     RunSafeInvoke(
                         VPTMainTimeline,
@@ -356,8 +416,6 @@ namespace WINFORMS_VLCClient.Forms
                                 VPTMainTimeline.ShowVideoIsPaused();
                         }
                     );
-
-                    CurrentPlayer.Pause();
                 }
             );
 
@@ -406,6 +464,26 @@ namespace WINFORMS_VLCClient.Forms
                 }
             );
 
+        void ToggleWindowFullScreenState() => SetWindowFullScreenState(!isFullScreen);
+
+        void SetWindowFullScreenState(bool to)
+        {
+            if (to)
+                FullscreenHelper.FullScreenWindow(this.Handle);
+            else
+                FullscreenHelper.LeaveFullscreen(this.Handle);
+
+            isFullScreen = to;
+        }
+
+        protected override void WndProc(ref Message m)
+        {
+            if (m.Msg == HotkeyHelper.WM_HOTKEY)
+                TogglePausedState();
+
+            base.WndProc(ref m);
+        }
+
         protected override bool ProcessCmdKey(ref Message msg, Keys keydata)
         {
             if (CurrentPlayer == null)
@@ -414,35 +492,48 @@ namespace WINFORMS_VLCClient.Forms
             switch (keydata)
             {
                 case Keys.Right:
-                {
                     SetPlayerTime(CurrentPlayer.Time + ARROW_SEEK_MS);
                     return true;
-                }
                 case Keys.Left:
-                {
-                    SetPlayerTime(CurrentPlayer.Time = CurrentPlayer.Time - ARROW_SEEK_MS);
+                    SetPlayerTime(CurrentPlayer.Time - ARROW_SEEK_MS);
                     return true;
-                }
                 case Keys.Up:
                     SetPlayerVolume(TBVolumeBar.Value + VOLUME_ARROW_CHANGE_PERCENT);
-
                     return true;
                 case Keys.Down:
                     SetPlayerVolume(TBVolumeBar.Value - VOLUME_ARROW_CHANGE_PERCENT);
+                    return true;
+                case Keys.F11:
+                    ToggleWindowFullScreenState();
+                    return true;
+                case Keys.Space:
+                    TogglePausedState();
+                    return true;
+                case Keys.Escape:
+                    if (!isFullScreen)
+                        return false;
+
+                    SetWindowFullScreenState(false);
+
                     return true;
             }
 
             return base.ProcessCmdKey(ref msg, keydata);
         }
 
-        void Cleanup()
+        void OnDispose(object? sender, EventArgs e)
+        {
+            HotkeyHelper.UnregisterHotkey(this.Handle, systemHotkeyF9PauseID);
+            HotkeyHelper.UnregisterHotkey(this.Handle, systemHotkeyMediaPauseID);
+        }
+
+        void CleanupPlayer()
         {
             var player = CurrentPlayer;
             if (player == null)
                 return;
 
             VVMainView.MediaPlayer = null;
-            //Insane Workaround because VLC is really quite terrible
             RunInThreadPool(_ =>
             {
                 player.TimeChanged -= OnTimeChange;

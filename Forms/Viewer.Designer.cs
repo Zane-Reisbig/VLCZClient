@@ -52,7 +52,8 @@
             VVMainView.Size = new Size(787, 562);
             VVMainView.TabIndex = 0;
             VVMainView.Text = "videoView1";
-            VVMainView.Click += VVMainView_Click;
+            VVMainView.MouseDoubleClick += VVMainView_DoubleClick;
+            VVMainView.MouseUp += VVMainView_Click;
             // 
             // VPTMainTimeline
             // 
@@ -142,11 +143,13 @@
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
+            BackColor = Color.Black;
             ClientSize = new Size(784, 561);
             Controls.Add(PSkipIntroFullContainer);
             Controls.Add(TBVolumeBar);
             Controls.Add(VPTMainTimeline);
             Controls.Add(VVMainView);
+            DoubleBuffered = true;
             Name = "Viewer";
             Text = "Viewer";
             ((System.ComponentModel.ISupportInitialize)VVMainView).EndInit();
