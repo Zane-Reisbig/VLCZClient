@@ -16,7 +16,7 @@ namespace ClientLib.STD
             FFMPEG,
         }
 
-        public static bool IsCursorInForm(Form target)
+        public static bool IsCursorInControl(Control target)
         {
             if (target.IsDisposed || target.Disposing)
                 return false;
@@ -37,12 +37,12 @@ namespace ClientLib.STD
 
         public static void RunInThreadPool(WaitCallback callable, string? debugLabel = null)
         {
-            Debug.WriteLineIf(debugLabel != null, $"Running Pooled Job: {debugLabel}");
+            Debug.WriteLineIf(debugLabel != null, $"INFO: Running Pooled Job: {debugLabel}");
             ThreadPool.QueueUserWorkItem(
                 (input) =>
                 {
                     callable(input);
-                    Debug.WriteLineIf(debugLabel != null, $"WARN: \"{debugLabel}\" DONE!");
+                    Debug.WriteLineIf(debugLabel != null, $"INFO: \"{debugLabel}\" DONE!");
                 }
             );
         }
@@ -55,20 +55,23 @@ namespace ClientLib.STD
                 return;
             }
 
-            Debug.WriteLineIf(debugLabel != null, $"Running Invoke Job: {debugLabel}");
+            Debug.WriteLineIf(debugLabel != null, $"INFO: Running Invoke Job: {debugLabel}");
 
             try
             {
                 target.Invoke(() =>
                 {
                     callable();
-                    Debug.WriteLineIf(debugLabel != null, $"WARN: \"{debugLabel}\" DONE!");
+                    Debug.WriteLineIf(debugLabel != null, $"INFO: \"{debugLabel}\" DONE!");
                 });
             }
-            catch (ObjectDisposedException e)
+            catch (ObjectDisposedException)
             {
-                Debug.WriteLine("Object was disposed mid-Invoke!");
-                Debug.WriteLine(e);
+                Debug.WriteLine("WARN: WinForms Object was disposed mid-Invoke!\nMEMORY MAY LEAK!");
+            }
+            catch (NullReferenceException)
+            {
+                Debug.WriteLine("WARN: Player was disposed mid-Invoke!\nMEMORY MAY LEAK!");
             }
         }
 

@@ -4,6 +4,10 @@ using WINFORMS_VLCClient.Lib.Hotkeys;
 
 namespace WINFORMS_VLCClient.Viewer
 {
+    // Have to do this so this file is no longer a designer file
+    [System.ComponentModel.DesignerCategory("dummy")]
+    internal class Dummy();
+
     public partial class Viewer : Form
     {
         int systemHotkeyF9PauseID;
@@ -41,10 +45,20 @@ namespace WINFORMS_VLCClient.Viewer
 
         void VVMainView_Click(object sender, MouseEventArgs e)
         {
-            if (e.Button != MouseButtons.Left)
-                return;
+            if (e.Button == MouseButtons.Left)
+                TogglePausedState();
 
-            TogglePausedState();
+            if (e.Button == MouseButtons.Right)
+            {
+                if (CMSLeftClickMenu.Visible)
+                    CMSLeftClickMenu.Hide();
+
+                if (TSMISubtitle.DropDownItems.Count == 1)
+                    PopulateSubtitlesInMenu();
+
+                var client = VVMainView.PointToScreen(new Point(e.X, e.Y));
+                CMSLeftClickMenu.Show(client.X, client.Y);
+            }
         }
 
         void VVMainView_DoubleClick(object sender, MouseEventArgs e)
@@ -82,55 +96,6 @@ namespace WINFORMS_VLCClient.Viewer
             {
                 SetPlayerTime(requestedTime);
             }
-        }
-
-        void ShowTimeline(object? sender, EventArgs e) => SetTimelineState(true);
-
-        void HideTimeline(object? sender, EventArgs e) => SetTimelineState(false);
-
-        void SetTimelineState(bool to)
-        {
-            if (!to && StandardDefinitions.IsCursorInForm(this))
-                return;
-
-            foreach (var control in allTheThingsThatNeedToAppearOnHover)
-            {
-                if (control.Enabled != to)
-                    control.Enabled = to;
-
-                if (control.Visible != to)
-                    control.Visible = to;
-            }
-        }
-
-        void ShowIntroSkipMaker(object? sender, EventArgs e)
-        {
-            if (PSkipIntroButtonContainer.Visible)
-                PSkipIntroButtonContainer.Hide();
-
-            PSkipIntroFullContainer.Size = ContainerSizeMarker;
-            PSkipIntroFullContainer.Location = ContainerLocationMarker;
-
-            MKRIntroSkip.Show();
-
-            if (PlayingMediaParentFolder != null)
-            {
-                Intro? haveIntro = Intro.GetIntroFromDirectory(PlayingMediaParentFolder);
-                if (haveIntro != null)
-                    MKRIntroSkip.SetTotalTextTime(haveIntro.diff.GetFormat());
-            }
-        }
-
-        void HideIntroSkipMaker(object? sender, EventArgs e)
-        {
-            if (MKRIntroSkip.Visible)
-                MKRIntroSkip.Hide();
-
-            PSkipIntroFullContainer.Size = ContainerSizeButtons;
-            PSkipIntroFullContainer.Location = ContainerLocationButtons;
-
-            PSkipIntroButtonContainer.Show();
-            MKRIntroSkip.ResetState();
         }
 
         protected override bool ProcessCmdKey(ref Message msg, Keys keydata)

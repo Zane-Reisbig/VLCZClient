@@ -10,6 +10,10 @@ using static ClientLib.STD.StandardDefinitions;
 
 namespace WINFORMS_VLCClient.Viewer
 {
+    // Have to do this so this file is no longer a designer file
+    [System.ComponentModel.DesignerCategory("dummy")]
+    internal class Dummy_VLCPlayer();
+
     public partial class Viewer
     {
         public void PlayMedia(Media media, Timestamp? startingPosition = null)
@@ -47,8 +51,9 @@ namespace WINFORMS_VLCClient.Viewer
             CurrentPlayer.EnableMouseInput = false;
 
             CurrentPlayer.TimeChanged += OnTimeChange;
-            CurrentPlayer.EndReached += (_, _) =>
-                RunSafeInvoke(this, () => MediaStopped?.Invoke(this, EventArgs.Empty));
+            CurrentPlayer.EndReached += OnEndReachedHook;
+
+            PopulateSubtitlesInMenu();
 
             if (
                 (CurrentPlayer.Volume == 0 || CurrentPlayer.Mute)
@@ -56,9 +61,9 @@ namespace WINFORMS_VLCClient.Viewer
                 && !mediaPlayerHasBeenCreated
             )
             {
-                Debug.WriteLine("Set Volume to default");
                 SetPlayerVolume(VOLUME_DEFAULT_PERCENTAGE);
                 TBVolumeBar.Value = VOLUME_DEFAULT_PERCENTAGE;
+                Debug.WriteLine($"INFO: Set Volume to default ({VOLUME_DEFAULT_PERCENTAGE})");
             }
             else
                 TBVolumeBar.Value = CurrentPlayer.Volume;
@@ -75,7 +80,7 @@ namespace WINFORMS_VLCClient.Viewer
                     if (CurrentPlayer == null)
                         return;
 
-                    int newVolume = Math.Max(0, Math.Min(100, CurrentPlayer.Volume + to));
+                    int newVolume = Math.Max(0, Math.Min(100, to));
 
                     RunSafeInvoke(
                         this,
@@ -90,12 +95,12 @@ namespace WINFORMS_VLCClient.Viewer
                                 VPTMainTimeline.ShowVolumeIsPlaying();
 
                             if (!fromVolumeBar)
-                                TBVolumeBar.Value = to;
+                                TBVolumeBar.Value = newVolume;
                         },
                         "Volume Invoke Ran!"
                     );
 
-                    CurrentPlayer.Volume = to;
+                    CurrentPlayer.Volume = newVolume;
                 },
                 $"Volume Change: {CurrentPlayer?.Volume}->{to}"
             );
@@ -141,5 +146,31 @@ namespace WINFORMS_VLCClient.Viewer
                     );
                 }
             );
+
+        void OnEndReachedHook(object? sender, EventArgs e) =>
+            RunSafeInvoke(this, () => MediaStopped?.Invoke(this, EventArgs.Empty));
+
+        void CleanupPlayer()
+        {
+            var player = CurrentPlayer;
+            if (player == null)
+                return;
+
+            VVMainView.MediaPlayer = null;
+
+            RunInThreadPool(_ =>
+            {
+                void PlayerStopped(object? sender, EventArgs e)
+                {
+                    player.Dispose();
+                    player.Stopped -= PlayerStopped;
+                }
+
+                player.TimeChanged -= OnTimeChange;
+                player.EndReached -= OnEndReachedHook;
+                player.Stop();
+                player.Stopped += PlayerStopped;
+            });
+        }
     }
 }

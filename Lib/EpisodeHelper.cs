@@ -39,7 +39,7 @@ namespace WINFORMS_VLCClient.Lib
             if (index == -1)
                 return null;
 
-            if (relativeIndex > 0 && index == files.Count - 1)
+            if (index == files.Count - 1 || 0 >= index)
                 return currentFilePath;
 
             return files[index + relativeIndex];

@@ -28,6 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            components = new System.ComponentModel.Container();
             VVMainView = new LibVLCSharp.WinForms.VideoView();
             VPTMainTimeline = new WINFORMS_VLCClient.Controls.VideoPlaybackTimeline();
             TBVolumeBar = new TrackBar();
@@ -36,10 +37,13 @@
             MKRIntroSkip = new WINFORMS_VLCClient.Controls.Marker();
             PSkipIntroButtonContainer = new Panel();
             PSkipIntroFullContainer = new Panel();
+            CMSLeftClickMenu = new ContextMenuStrip(components);
+            TSMISubtitle = new ToolStripMenuItem();
             ((System.ComponentModel.ISupportInitialize)VVMainView).BeginInit();
             ((System.ComponentModel.ISupportInitialize)TBVolumeBar).BeginInit();
             PSkipIntroButtonContainer.SuspendLayout();
             PSkipIntroFullContainer.SuspendLayout();
+            CMSLeftClickMenu.SuspendLayout();
             SuspendLayout();
             // 
             // VVMainView
@@ -53,7 +57,7 @@
             VVMainView.TabIndex = 0;
             VVMainView.Text = "videoView1";
             VVMainView.MouseDoubleClick += VVMainView_DoubleClick;
-            VVMainView.MouseUp += VVMainView_Click;
+            VVMainView.MouseUp += this.VVMainView_Click;
             // 
             // VPTMainTimeline
             // 
@@ -139,6 +143,19 @@
             PSkipIntroFullContainer.Size = new Size(249, 74);
             PSkipIntroFullContainer.TabIndex = 6;
             // 
+            // CMSLeftClickMenu
+            // 
+            CMSLeftClickMenu.Items.AddRange(new ToolStripItem[] { TSMISubtitle });
+            CMSLeftClickMenu.Name = "CMSLeftClickMenu";
+            CMSLeftClickMenu.Size = new Size(181, 48);
+            CMSLeftClickMenu.Tag = "Subtitles";
+            // 
+            // TSMISubtitle
+            // 
+            TSMISubtitle.Name = "TSMISubtitle";
+            TSMISubtitle.Size = new Size(180, 22);
+            TSMISubtitle.Text = "Subtitles";
+            // 
             // Viewer
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
@@ -156,6 +173,7 @@
             ((System.ComponentModel.ISupportInitialize)TBVolumeBar).EndInit();
             PSkipIntroButtonContainer.ResumeLayout(false);
             PSkipIntroFullContainer.ResumeLayout(false);
+            CMSLeftClickMenu.ResumeLayout(false);
             ResumeLayout(false);
         }
 
@@ -169,5 +187,7 @@
         private Controls.Marker MKRIntroSkip;
         private Panel PSkipIntroButtonContainer;
         private Panel PSkipIntroFullContainer;
+        private ContextMenuStrip CMSLeftClickMenu;
+        private ToolStripMenuItem TSMISubtitle;
     }
 }

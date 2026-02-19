@@ -14,6 +14,15 @@ namespace WINFORMS_VLCClient
 {
     public partial class Landing : Form
     {
+        static readonly string[] libVLCParams =
+        [
+            "--vout=direct3d11",
+            "--direct3d11-hw-blending",
+            "--network-caching=10",
+            "--live-caching=10",
+            "--disc-caching=10",
+        ];
+
         static readonly string historyFileName = "history.txt";
 
         static string HistoryPath
@@ -27,7 +36,7 @@ namespace WINFORMS_VLCClient
             get
             {
                 if (vlcLib == null)
-                    vlcLib = new LibVLC("--vout=direct3d11", "--direct3d11-hw-blending");
+                    vlcLib = new LibVLC(libVLCParams);
 
                 return vlcLib;
             }

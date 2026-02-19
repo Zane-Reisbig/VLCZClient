@@ -86,13 +86,7 @@ namespace WINFORMS_VLCClient.Viewer
 
             this.MinimumSize = VIEWER_MINIUM_SIZE;
             this.KeyPreview = true;
-            this.Disposed += OnDispose;
-            this.FormClosing += (_, _) =>
-            {
-                pollTimer?.Stop();
-                pollTimer?.Dispose();
-                CleanupPlayer();
-            };
+            this.FormClosing += CleanupViewer;
 
             HookControls();
             HideIntroSkipMaker(null, null!);
@@ -128,18 +122,6 @@ namespace WINFORMS_VLCClient.Viewer
                 parent.VideoViewFormRestorePosition = this.Location;
 
             SetTimelineState(false);
-        }
-
-        void SelectSubtitleTrack()
-        {
-            if (CurrentPlayer == null)
-                return;
-
-            if (FileDialog.ShowDialog() != DialogResult.OK)
-                return;
-
-            var file = FileDialog.FileNames[0];
-            Subtitles.Load(CurrentPlayer, file);
         }
 
         Intro? GetIntroForCurrentMedia()
@@ -207,11 +189,12 @@ namespace WINFORMS_VLCClient.Viewer
                 this,
                 () =>
                 {
-                    var currentTime = Timestamp.FromMS(e.Time);
-                    long? len = CurrentPlayer.Length;
-
-                    VPTMainTimeline.SetDisplayedVideoTime(currentTime, Timestamp.FromMS((long)len));
-                    VPTMainTimeline.SetBarPosition((int)((100 * e.Time) / (long)len));
+                    long len = CurrentPlayer.Length;
+                    VPTMainTimeline.SetDisplayedVideoTime(
+                        Timestamp.FromMS(e.Time),
+                        Timestamp.FromMS(len)
+                    );
+                    VPTMainTimeline.SetBarPosition((int)((100 * e.Time) / len));
                 }
             );
         }
@@ -220,9 +203,10 @@ namespace WINFORMS_VLCClient.Viewer
 
         void SetWindowFullScreenState(bool to)
         {
-            if (to)
+            if (to && !isFullScreen)
                 FullscreenHelper.FullScreenWindow(this.Handle);
-            else
+
+            if (!to && isFullScreen)
                 FullscreenHelper.LeaveFullscreen(this.Handle);
 
             isFullScreen = to;
@@ -236,25 +220,25 @@ namespace WINFORMS_VLCClient.Viewer
             base.WndProc(ref m);
         }
 
-        void OnDispose(object? sender, EventArgs e)
+        void CleanupViewer(object? sender, EventArgs e)
         {
             HotkeyHelper.UnregisterHotkey(this.Handle, systemHotkeyF9PauseID);
             HotkeyHelper.UnregisterHotkey(this.Handle, systemHotkeyMediaPauseID);
-        }
 
-        void CleanupPlayer()
-        {
-            var player = CurrentPlayer;
-            if (player == null)
-                return;
+            RunSafeInvoke(
+                this,
+                () =>
+                {
+                    this.FormClosing -= CleanupViewer;
 
-            VVMainView.MediaPlayer = null;
-            RunInThreadPool(_ =>
-            {
-                player.TimeChanged -= OnTimeChange;
-                player.Stop();
-                player.Dispose();
-            });
+                    CleanupPlayer();
+                    UnhookControls();
+
+                    pollTimer?.Stop();
+                    pollTimer?.Dispose();
+                    fileDialog?.Dispose();
+                }
+            );
         }
     }
 }

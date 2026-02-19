@@ -8,26 +8,26 @@
     <Compile Update="Controls\MediaInfomationPanel.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Update="Controls\VideoPlaybackTimeline.cs">
+    <Compile Update="Controls\TextDisplayVariableSize.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Update="Controls\TextDisplayVariableSize.cs">
+    <Compile Update="Controls\VideoPlaybackTimeline.cs">
       <SubType>UserControl</SubType>
     </Compile>
     <Compile Update="Forms\Landing\Landing.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Update="Forms\Viewer\Viewer.Controls.cs">
-      <SubType>Form</SubType>
+      <SubType>dummy</SubType>
     </Compile>
     <Compile Update="Forms\Viewer\Viewer.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Update="Forms\Viewer\Viewer.HID.cs">
-      <SubType>Form</SubType>
+      <SubType>dummy</SubType>
     </Compile>
     <Compile Update="Forms\Viewer\Viewer.VLCPlayer.cs">
-      <SubType>Form</SubType>
+      <SubType>dummy</SubType>
     </Compile>
   </ItemGroup>
 </Project>
