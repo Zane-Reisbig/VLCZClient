@@ -1,4 +1,4 @@
-﻿namespace WINFORMS_VLCClient.Forms
+﻿namespace WINFORMS_VLCClient.Viewer
 {
     partial class TextDisplayVariableSize
     {

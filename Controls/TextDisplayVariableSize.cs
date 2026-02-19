@@ -8,7 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace WINFORMS_VLCClient.Forms
+namespace WINFORMS_VLCClient.Viewer
 {
     public enum TextDisplaySize
     {

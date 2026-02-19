@@ -5,9 +5,9 @@ using ClientLib.STD;
 using LibVLCSharp.Shared;
 using LibVLCSharp.WinForms;
 using WINFORMS_VLCClient.Controls;
-using WINFORMS_VLCClient.Forms;
 using WINFORMS_VLCClient.Lib;
 using WINFORMS_VLCClient.Lib.MediaInformation;
+using WINFORMS_VLCClient.Viewer;
 using static ClientLib.STD.StandardDefinitions;
 
 namespace WINFORMS_VLCClient
@@ -59,8 +59,8 @@ namespace WINFORMS_VLCClient
             set => videoViewFormRestorePosition = value;
         }
 
-        Viewer? videoViewForm;
-        Viewer VideoViewForm
+        Viewer.Viewer? videoViewForm;
+        Viewer.Viewer VideoViewForm
         {
             get
             {
@@ -193,7 +193,7 @@ namespace WINFORMS_VLCClient
 
         void RestoreLocationHook(object? sender, EventArgs e)
         {
-            if (sender is not Viewer view)
+            if (sender is not Viewer.Viewer view)
                 return;
 
             if (VideoViewFormRestorePosition != null)

@@ -11,8 +11,8 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using LibVLCSharp.Shared;
-using WINFORMS_VLCClient.Forms;
 using WINFORMS_VLCClient.Lib.ComponentCycler;
+using WINFORMS_VLCClient.Viewer;
 using static ClientLib.STD.StandardDefinitions;
 
 namespace WINFORMS_VLCClient.Controls
