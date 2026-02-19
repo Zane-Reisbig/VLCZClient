@@ -10,6 +10,8 @@ A Windows Forms video player built with LibVLCSharp.
 - Watch History with timestamp persistence (resume where you left off)
 - Skip Intro (after you mark it)
 - Auto Play next in folder
+- Alt+F9 will toggle Play/Pause
+- F11 to toggle Fullscreen
 
 ## Requirements
 
