@@ -5,6 +5,7 @@ A Windows Forms video player built with LibVLCSharp.
 ## Features
 
 - Video Playback using VLC's libvlc backend
+- Ability to "Right Click -> Open With -> VLCZViewer.exe" On Windows
 - Playback Controls (play/pause, mute, timeline seeking)
 - Mouse Wheel scrubbing through video
 - Watch History with timestamp persistence (resume where you left off)
