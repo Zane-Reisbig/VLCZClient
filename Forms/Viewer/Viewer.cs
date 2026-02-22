@@ -28,9 +28,11 @@ namespace WINFORMS_VLCClient.Viewer
     {
         static readonly int POLL_RATE_MS = 900;
         static readonly int ARROW_SEEK_MS = 10 * 1000;
+        static readonly int REWIND_AFTER_END_MS = 10 * 1000;
         static readonly int SCROLL_SEEK_MS = 500;
         static readonly int VOLUME_DEFAULT_PERCENTAGE = 70;
         static readonly int VOLUME_ARROW_CHANGE_PERCENT = 1;
+        static readonly int VISUAL_ERROR_TIMEOUT_SMALL = 1000;
 
         public static readonly Size VIEWER_MINIUM_SIZE = new(800, 600);
         static readonly Size ContainerSizeButtons = new(104, 59);
@@ -116,8 +118,8 @@ namespace WINFORMS_VLCClient.Viewer
                 Timestamp.FromMS(CurrentPlayer.Time)
             );
 
-            // Do it this way to avoid recording when the window pops up as a new window,
-            //  since we cant set the actual restore position.
+            // needed to avoid recording when the window pops up as a new window,
+            //  since we cant set the initial creation position.
             if (hasBeenRepositioned)
                 parent.VideoViewFormRestorePosition = this.Location;
 
@@ -153,7 +155,6 @@ namespace WINFORMS_VLCClient.Viewer
 
             var haveIntro = GetIntroForCurrentMedia();
             if (haveIntro != null)
-            {
                 if (
                     MessageBox.Show(
                         $"Do you really want to overwrite the old intro time?\nOld intro: {haveIntro.diff.GetFormat()}\nNew intro: {e.diff.GetFormat()}",
@@ -162,7 +163,6 @@ namespace WINFORMS_VLCClient.Viewer
                     ) != DialogResult.Yes
                 )
                     return;
-            }
 
             File.WriteAllText(
                 path: Intro.GetIntroPathForDirectory(mPath)!,
@@ -175,20 +175,19 @@ namespace WINFORMS_VLCClient.Viewer
             );
         }
 
-        void OnTimeChange(object? sender, MediaPlayerTimeChangedEventArgs e)
-        {
-            if (
-                VPTMainTimeline.Disposing
-                || VPTMainTimeline.IsDisposed
-                || CurrentPlayer == null
-                || CurrentPlayer.Length == 0
-            )
-                return;
-
+        void OnTimeChange(object? sender, MediaPlayerTimeChangedEventArgs e) =>
             RunSafeInvoke(
                 this,
                 () =>
                 {
+                    if (
+                        VPTMainTimeline.Disposing
+                        || VPTMainTimeline.IsDisposed
+                        || CurrentPlayer == null
+                        || CurrentPlayer.Length == 0
+                    )
+                        return;
+
                     long len = CurrentPlayer.Length;
                     VPTMainTimeline.SetDisplayedVideoTime(
                         Timestamp.FromMS(e.Time),
@@ -197,7 +196,6 @@ namespace WINFORMS_VLCClient.Viewer
                     VPTMainTimeline.SetBarPosition((int)((100 * e.Time) / len));
                 }
             );
-        }
 
         void ToggleWindowFullScreenState() => SetWindowFullScreenState(!isFullScreen);
 
@@ -210,6 +208,38 @@ namespace WINFORMS_VLCClient.Viewer
                 FullscreenHelper.LeaveFullscreen(this.Handle);
 
             isFullScreen = to;
+        }
+
+        private void VVMainView_DragDrop(object sender, DragEventArgs e)
+        {
+            if (
+                e.Data == null
+                || e.Data.GetData(DataFormats.FileDrop) is not string[] file
+                || file.Length == 0
+            )
+                return;
+
+            if (LoadSubtitleFromFile(file[0]))
+                // Successful return early
+                return;
+
+            Cursor = Cursors.No;
+            RunInThreadPool(
+                (_) =>
+                {
+                    Thread.Sleep(VISUAL_ERROR_TIMEOUT_SMALL);
+                    RunSafeInvoke(this, () => Cursor = Cursors.Default);
+                }
+            );
+            Debug.WriteLine($"WARN: Failed to set subtitles to: \"{file[0]}\"");
+        }
+
+        private void VVMainView_DragEnter(object sender, DragEventArgs e)
+        {
+            if (e.Data == null || !e.Data.GetDataPresent(DataFormats.FileDrop))
+                return;
+
+            e.Effect = DragDropEffects.Link;
         }
 
         protected override void WndProc(ref Message m)
@@ -231,12 +261,12 @@ namespace WINFORMS_VLCClient.Viewer
                 {
                     this.FormClosing -= CleanupViewer;
 
-                    CleanupPlayer();
-                    UnhookControls();
-
                     pollTimer?.Stop();
                     pollTimer?.Dispose();
                     fileDialog?.Dispose();
+
+                    UnhookControls();
+                    CleanupPlayer();
                 }
             );
         }

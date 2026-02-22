@@ -23,18 +23,31 @@ namespace WINFORMS_VLCClient.Viewer
                 (_) =>
                 {
                     // Have to do it this way to normalize the [media.Mrl]'s "URL-iffied" path characters
-                    var fileName = Path.GetFileName(new Uri(media.Mrl).LocalPath);
-#if DEBUG
-                    RunSafeInvoke(this, () => this.Text = $"[DEBUG] - {fileName}");
-#else
-                    RunSafeInvoke(this, () => this.Text = $"Viewer - {fileName}");
-#endif
+                    var uri = new Uri(media.Mrl).LocalPath;
+                    if (!File.Exists(uri))
+                    {
+                        MessageBox.Show(
+                            $"File does not exist!\nPath: \"{uri}\"",
+                            "Error",
+                            MessageBoxButtons.OK
+                        );
+                        RunSafeInvoke(this, this.Close);
+                        return;
+                    }
+
+                    var fileName = Path.GetFileName(uri);
                     player.Play(media);
 
                     if (startingPosition != null)
                         player.Time = startingPosition.ToMS();
 
                     // Auto link subtitles here if the name matches
+                    //
+#if DEBUG
+                    RunSafeInvoke(this, () => this.Text = $"[DEBUG] - {fileName}");
+#else
+                    RunSafeInvoke(this, () => this.Text = $"Viewer - {fileName}");
+#endif
                 }
             );
 
@@ -138,11 +151,12 @@ namespace WINFORMS_VLCClient.Viewer
                         VPTMainTimeline,
                         () =>
                         {
-                            if (VPTMainTimeline.IsVideoPausedShown())
+                            if (to)
                                 VPTMainTimeline.ShowVideoIsPlaying();
                             else
                                 VPTMainTimeline.ShowVideoIsPaused();
-                        }
+                        },
+                        "Switching Paused State"
                     );
                 }
             );

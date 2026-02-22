@@ -78,7 +78,6 @@
             // 
             // LMuteButton
             // 
-            LMuteButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             LMuteButton.Font = new Font("Segoe UI", 15F);
             LMuteButton.Location = new Point(106, 39);
             LMuteButton.Margin = new Padding(0);
@@ -92,7 +91,6 @@
             // 
             // LUnMuteButton
             // 
-            LUnMuteButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             LUnMuteButton.Enabled = false;
             LUnMuteButton.Font = new Font("Segoe UI", 15F);
             LUnMuteButton.Location = new Point(106, 39);
@@ -151,8 +149,8 @@
             Controls.Add(LNextEpisode);
             Controls.Add(LPlayButton);
             Controls.Add(LPauseButton);
-            Controls.Add(LMuteButton);
             Controls.Add(LUnMuteButton);
+            Controls.Add(LMuteButton);
             ForeColor = SystemColors.Control;
             MinimumSize = new Size(268, 74);
             Name = "VideoPlaybackTimeline";

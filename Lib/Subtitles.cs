@@ -90,10 +90,10 @@ namespace WINFORMS_VLCClient.Lib
             return outResult;
         }
 
-        public static void Load(MediaPlayer player, string filePath, bool show = true)
+        public static bool Load(MediaPlayer player, string filePath, bool show = true)
         {
             if (!Path.Exists(filePath) || !GoodFileExtensions.Contains(Path.GetExtension(filePath)))
-                return;
+                return false;
 
             StandardDefinitions.RunInThreadPool(
                 (_) =>
@@ -114,6 +114,8 @@ namespace WINFORMS_VLCClient.Lib
                     OnSubtitleAdded(player);
                 }
             );
+
+            return true;
         }
 
         public static void OnSubtitleAdded(MediaPlayer player) =>

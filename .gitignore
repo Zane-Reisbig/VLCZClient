@@ -2,3 +2,4 @@ bin/
 obj/
 \.vs/
 .WINFORMS-VLCClient.csproj.user
+Properties/launchSettings.json

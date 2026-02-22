@@ -43,6 +43,7 @@ namespace WINFORMS_VLCClient.Controls
             this.MouseWheel += MouseWheelMoved;
             PBVideoTimeline.MouseWheel += MouseWheelMoved;
             PBVideoTimeline.MouseMove += OnMouseDidMove;
+            PBVideoTimeline.MouseDown += OnMouseDidMove;
         }
 
         public float ClickPointToBarPercentage(Point location)
@@ -50,6 +51,11 @@ namespace WINFORMS_VLCClient.Controls
             double percentage = (double)location.X / PBVideoTimeline.Width;
             return (float)(Math.Clamp(percentage, 0.0, 1.0));
         }
+
+        public void SetDisplayedVideoTime(Timestamp to, Timestamp other) =>
+            LVideoTime.Text = $"{to.GetFormat()} | {other.GetFormat()}";
+
+        public void SetBarPosition(int percentage) => PBVideoTimeline.Value = percentage;
 
         public bool IsVolumeMutedShown() => MuteCycler.GetSlot() == 0;
 
@@ -62,11 +68,6 @@ namespace WINFORMS_VLCClient.Controls
         public void ShowVideoIsPaused() => PauseCycler.ShowAtSlot(1);
 
         public void ShowVideoIsPlaying() => PauseCycler.ShowAtSlot(0);
-
-        public void SetDisplayedVideoTime(Timestamp to, Timestamp other) =>
-            LVideoTime.Text = $"{to.GetFormat()} | {other.GetFormat()}";
-
-        public void SetBarPosition(int percentage) => PBVideoTimeline.Value = percentage;
 
         private void OnMouseDidMove(object? sender, MouseEventArgs e) =>
             MouseDidMove?.Invoke(this, e);
@@ -85,8 +86,6 @@ namespace WINFORMS_VLCClient.Controls
             PauseCycler.Cycle();
             PauseButtonClicked?.Invoke(this, EventArgs.Empty);
         }
-
-        private void VideoPlaybackTimeline_Load(object sender, EventArgs e) { }
 
         private void LNextEpisode_Click(object sender, EventArgs e)
         {

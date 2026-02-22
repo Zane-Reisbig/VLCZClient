@@ -64,14 +64,10 @@ namespace WINFORMS_VLCClient.Viewer
             TSMISubtitle.MouseHover -= ShowSubtitleBox;
             Subtitles.SubtitleAdded -= PopulateSubtitlesInMenuHook;
 
-            ToolStripMenuItem last = (ToolStripMenuItem)TSMISubtitle.DropDownItems[^1];
             foreach (ToolStripMenuItem item in TSMISubtitle.DropDownItems)
-            {
-                if (item == last)
-                    continue;
-
                 item.MouseUp -= EnableSubtitle;
-            }
+
+            ToolStripMenuItem last = (ToolStripMenuItem)TSMISubtitle.DropDownItems[^1];
             last.MouseUp -= SelectSubtitleTrackHook;
 
             MKRIntroSkip.MarkConfirmed -= ConfirmIntro;
@@ -121,18 +117,25 @@ namespace WINFORMS_VLCClient.Viewer
             TSMISubtitle.DropDownItems.AddRange([.. subtitles]);
         }
 
-        void SelectSubtitleTrackHook(object? sender, EventArgs e) => SelectSubtitleTrack();
+        void SelectSubtitleTrackHook(object? sender, EventArgs e) => LoadSubtitleFromFile();
 
-        void SelectSubtitleTrack()
+        bool LoadSubtitleFromFile(string? path = null)
         {
             if (CurrentPlayer == null)
-                return;
+                return false;
 
-            if (FileDialog.ShowDialog() != DialogResult.OK)
-                return;
+            var usedFile = path;
+            if (path == null)
+            {
+                if (FileDialog.ShowDialog() != DialogResult.OK)
+                    return false;
 
-            var file = FileDialog.FileNames[0];
-            Subtitles.Load(CurrentPlayer, file);
+                usedFile = FileDialog.FileNames[0];
+            }
+
+            // this checks if the file exists and is good
+            //  so no do here <3
+            return Subtitles.Load(CurrentPlayer, filePath: usedFile!);
         }
 
         void EnableSubtitle(object? sender, MouseEventArgs e)
@@ -150,7 +153,7 @@ namespace WINFORMS_VLCClient.Viewer
 
         void SetTimelineState(bool to)
         {
-            if (!to && StandardDefinitions.IsCursorInControl(this))
+            if (!to && IsCursorInControl(this))
                 return;
 
             foreach (var control in allTheThingsThatNeedToAppearOnHover)

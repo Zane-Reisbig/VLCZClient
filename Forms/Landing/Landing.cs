@@ -77,14 +77,13 @@ namespace WINFORMS_VLCClient
                 {
                     videoViewForm = new(this);
                     videoViewForm.Shown += RestoreLocationHook;
-                    videoViewForm.MediaStopped += (_, _) => ChangeMedia(forward: true);
-                    videoViewForm.NextButton += (_, _) => ChangeMedia(forward: true);
-                    videoViewForm.PrevButton += (_, _) => ChangeMedia(forward: false);
+                    videoViewForm.MediaStopped += (_, _) => NextPreviousEpisode(next: true);
+                    videoViewForm.NextButton += (_, _) => NextPreviousEpisode(next: true);
+                    videoViewForm.PrevButton += (_, _) => NextPreviousEpisode(next: false);
                     videoViewForm.FormClosed += (_, _) =>
                     {
                         FillLastWatched(LastWatched);
-                        BContinueLast.Enabled = true;
-                        BWatchNew.Enabled = true;
+                        EnableButtons();
                     };
                 }
 
@@ -108,7 +107,7 @@ namespace WINFORMS_VLCClient
         }
 
         static void CreateNewHistory() =>
-            StandardDefinitions.WriteDictToINIFile<string, string>(
+            WriteDictToINIFile<string, string>(
                 HistoryPath,
                 new() { { "path", "None" }, { "timestamp", "None" } }
             );
@@ -121,7 +120,7 @@ namespace WINFORMS_VLCClient
             return MediaInformation.ReadFromINI(HistoryPath);
         }
 
-        public Landing()
+        public Landing(string? playPath)
         {
             Core.Initialize();
             InitializeComponent();
@@ -131,6 +130,9 @@ namespace WINFORMS_VLCClient
             if (LastWatched.FilePath == null)
                 BContinueLast.Enabled = false;
 
+            if (playPath != null)
+                PlayMediaFromString(playPath);
+
 #if DEBUG
             this.Text = "[DEBUG]";
 #endif
@@ -138,12 +140,12 @@ namespace WINFORMS_VLCClient
 
         public MediaPlayer MakeMediaPlayer() => new(VLCLib);
 
-        public void ChangeMedia(bool forward)
+        public void NextPreviousEpisode(bool next)
         {
             if (LastWatched.FilePath == null)
                 return;
 
-            var nextEpisode = forward
+            var nextEpisode = next
                 ? EpisodeHelper.GetNextFileAlphOrder(LastWatched.FilePath.LocalPath)
                 : EpisodeHelper.GetPrevFileAlphOrder(LastWatched.FilePath.LocalPath);
 
@@ -153,7 +155,7 @@ namespace WINFORMS_VLCClient
             this.LastWatched = new(new(nextEpisode), Timestamp.FromMS(0));
 
             VideoViewForm.Close();
-            VideoViewForm.PlayMedia(new Media(VLCLib, nextEpisode!));
+            PlayMediaFromString(nextEpisode!);
             VideoViewForm.Show();
         }
 
@@ -164,10 +166,30 @@ namespace WINFORMS_VLCClient
             MIInformationPanel.MediaPath = Path.GetDirectoryName(source.FilePath?.LocalPath) ?? "";
         }
 
-        void BWatchNew_Click(object? sender, EventArgs e)
+        void DisableButtons()
         {
             BWatchNew.Enabled = false;
             BContinueLast.Enabled = false;
+        }
+
+        void EnableButtons()
+        {
+            BWatchNew.Enabled = true;
+            BContinueLast.Enabled = true;
+        }
+
+        void PlayMediaFromString(string path, Timestamp? timestamp = null)
+        {
+            DisableButtons();
+            VideoViewForm.PlayMedia(new Media(VLCLib, path), timestamp);
+
+            if (!VideoViewForm.Visible)
+                VideoViewForm.Show();
+        }
+
+        void BWatchNew_Click(object? sender, EventArgs e)
+        {
+            DisableButtons();
 
             var res = FileDialog.ShowDialog();
             if (res != DialogResult.OK)
@@ -177,16 +199,12 @@ namespace WINFORMS_VLCClient
             }
 
             var filePath = FileDialog.FileNames[0];
-            VideoViewForm.PlayMedia(new Media(VLCLib, filePath));
-
-            if (!VideoViewForm.Visible)
-                VideoViewForm.Show();
+            PlayMediaFromString(filePath, LastWatched.Timestamp);
         }
 
         void BContinueLast_Click(object? sender, EventArgs e)
         {
-            BContinueLast.Enabled = false;
-            BWatchNew.Enabled = false;
+            DisableButtons();
 
             if (LastWatched.FilePath == null)
             {
@@ -194,10 +212,7 @@ namespace WINFORMS_VLCClient
                 return;
             }
 
-            VideoViewForm.PlayMedia(new Media(VLCLib, LastWatched.FilePath), LastWatched.Timestamp);
-
-            if (!VideoViewForm.Visible)
-                VideoViewForm.Show();
+            PlayMediaFromString(LastWatched.FilePath.LocalPath, LastWatched.Timestamp);
         }
 
         void RestoreLocationHook(object? sender, EventArgs e)
@@ -207,10 +222,8 @@ namespace WINFORMS_VLCClient
 
             if (VideoViewFormRestorePosition != null)
                 VideoViewForm.SetLocation((Point)VideoViewFormRestorePosition);
-            // Have to do this to get the VideoViewForm out of its null state
-            //  for the first launch
             else
-                VideoViewForm.SetLocation(VideoViewForm.Location);
+                VideoViewFormRestorePosition = VideoViewForm.Location;
 
             view.Shown -= RestoreLocationHook;
         }

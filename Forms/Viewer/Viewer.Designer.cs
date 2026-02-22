@@ -48,6 +48,7 @@
             // 
             // VVMainView
             // 
+            VVMainView.AllowDrop = true;
             VVMainView.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             VVMainView.BackColor = Color.Black;
             VVMainView.Location = new Point(-1, -1);
@@ -56,8 +57,10 @@
             VVMainView.Size = new Size(787, 562);
             VVMainView.TabIndex = 0;
             VVMainView.Text = "videoView1";
+            VVMainView.DragDrop += VVMainView_DragDrop;
+            VVMainView.DragEnter += VVMainView_DragEnter;
             VVMainView.MouseDoubleClick += VVMainView_DoubleClick;
-            VVMainView.MouseUp += this.VVMainView_Click;
+            VVMainView.MouseUp += VVMainView_Click;
             // 
             // VPTMainTimeline
             // 
@@ -147,13 +150,13 @@
             // 
             CMSLeftClickMenu.Items.AddRange(new ToolStripItem[] { TSMISubtitle });
             CMSLeftClickMenu.Name = "CMSLeftClickMenu";
-            CMSLeftClickMenu.Size = new Size(181, 48);
+            CMSLeftClickMenu.Size = new Size(120, 26);
             CMSLeftClickMenu.Tag = "Subtitles";
             // 
             // TSMISubtitle
             // 
             TSMISubtitle.Name = "TSMISubtitle";
-            TSMISubtitle.Size = new Size(180, 22);
+            TSMISubtitle.Size = new Size(119, 22);
             TSMISubtitle.Text = "Subtitles";
             // 
             // Viewer

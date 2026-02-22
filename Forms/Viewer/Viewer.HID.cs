@@ -15,6 +15,9 @@ namespace WINFORMS_VLCClient.Viewer
 
         void HookSystemHotkeys()
         {
+            if (systemHotkeyF9PauseID != default)
+                HotkeyHelper.UnregisterHotkey(this.Handle, systemHotkeyF9PauseID);
+
             systemHotkeyF9PauseID = new Random().Next(int.MaxValue);
             HotkeyHelper.RegisterHotkey(
                 this.Handle,
@@ -22,6 +25,9 @@ namespace WINFORMS_VLCClient.Viewer
                 HotkeyHelper.MOD_ALT,
                 (uint)Keys.F9
             );
+
+            if (systemHotkeyMediaPauseID != default)
+                HotkeyHelper.UnregisterHotkey(this.Handle, systemHotkeyMediaPauseID);
 
             systemHotkeyMediaPauseID = new Random().Next(int.MaxValue);
             HotkeyHelper.RegisterHotkey(
@@ -70,7 +76,7 @@ namespace WINFORMS_VLCClient.Viewer
                 return;
             }
             else
-                SelectSubtitleTrack();
+                LoadSubtitleFromFile();
         }
 
         void SeekMediaMouseEvent(object? sender, MouseEventArgs e)
@@ -88,7 +94,6 @@ namespace WINFORMS_VLCClient.Viewer
 
             if (requestedTime >= mediaSize)
             {
-                const int REWIND_AFTER_END_MS = 10 * 1000;
                 SetPlayerTime(requestedTime - REWIND_AFTER_END_MS);
                 SetPausedState(true);
             }
