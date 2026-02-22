@@ -15,7 +15,7 @@ A Windows Forms video player built with LibVLCSharp.
 - Embedded and Custom subtitles accessed via right-click menu.<br/>
     Additionaly, subtitles can be added by dragging and dropping
 <br/>
-<img src="./viewerplayerpreview" alt="Image of Two Windows, A 'Player' with controls and a 'Viewer' where media is displayed.">
+<img src="./viewerplayerpreview.png" alt="Image of Two Windows, A 'Player' with controls and a 'Viewer' where media is displayed.">
 
 ## Requirements
 
