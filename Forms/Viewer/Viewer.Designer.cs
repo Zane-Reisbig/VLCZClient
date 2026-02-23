@@ -29,6 +29,7 @@
         private void InitializeComponent()
         {
             components = new System.ComponentModel.Container();
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Viewer));
             VVMainView = new LibVLCSharp.WinForms.VideoView();
             VPTMainTimeline = new WINFORMS_VLCClient.Controls.VideoPlaybackTimeline();
             TBVolumeBar = new TrackBar();
@@ -170,6 +171,7 @@
             Controls.Add(VPTMainTimeline);
             Controls.Add(VVMainView);
             DoubleBuffered = true;
+            Icon = (Icon)resources.GetObject("$this.Icon");
             Name = "Viewer";
             Text = "Viewer";
             ((System.ComponentModel.ISupportInitialize)VVMainView).EndInit();

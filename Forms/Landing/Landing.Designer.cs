@@ -28,6 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Landing));
             BContinueLast = new Button();
             BWatchNew = new Button();
             label1 = new Label();
@@ -91,6 +92,7 @@
             Controls.Add(BWatchNew);
             Controls.Add(BContinueLast);
             FormBorderStyle = FormBorderStyle.FixedSingle;
+            Icon = (Icon)resources.GetObject("$this.Icon");
             MaximizeBox = false;
             Name = "Landing";
             Text = "ZPlayer";
