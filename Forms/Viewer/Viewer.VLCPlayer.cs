@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using LibVLCSharp.Shared;
 using WINFORMS_VLCClient.Lib;
 using static ClientLib.STD.StandardDefinitions;
+using AudioTrack = WINFORMS_VLCClient.Lib.AudioTrack;
 
 namespace WINFORMS_VLCClient.Viewer
 {
@@ -16,9 +17,27 @@ namespace WINFORMS_VLCClient.Viewer
 
     public partial class Viewer
     {
+        void SettingsExecutor(object? sender, EventArgs e)
+        {
+            if (parent.Settings.showSubtitles)
+                Subtitles.SetByLanguage(
+                    CurrentPlayer!,
+                    parent.Settings.possibleSubtitleLanguages,
+                    ignore: parent.Settings.subtitleBlacklist
+                );
+
+            if (parent.Settings.possibleAudioLanguages.Count != 0)
+                AudioTrack.SetByLanguage(CurrentPlayer!, parent.Settings.possibleAudioLanguages);
+
+            PopulateLanguagesInMenu();
+            CurrentPlayer!.MediaChanged -= SettingsExecutor;
+        }
+
         public void PlayMedia(Media media, Timestamp? startingPosition = null)
         {
             var player = GetNewMediaPlayer();
+            player.ESAdded += SettingsExecutor;
+
             RunInThreadPool(
                 (_) =>
                 {
@@ -41,13 +60,17 @@ namespace WINFORMS_VLCClient.Viewer
                     if (startingPosition != null)
                         player.Time = startingPosition.ToMS();
 
-                    // Auto link subtitles here if the name matches
-                    //
+                    RunSafeInvoke(
+                        this,
+                        () =>
+                        {
 #if DEBUG
-                    RunSafeInvoke(this, () => this.Text = $"[DEBUG] - {fileName}");
+                            this.Text = $"[DEBUG] - {fileName}";
 #else
-                    RunSafeInvoke(this, () => this.Text = $"Viewer - {fileName}");
+                            this.Text = $"Viewer - {fileName}";
 #endif
+                        }
+                    );
                 }
             );
 
@@ -57,7 +80,10 @@ namespace WINFORMS_VLCClient.Viewer
         MediaPlayer GetNewMediaPlayer()
         {
             if (CurrentPlayer != null)
+            {
                 CleanupPlayer();
+                VVMainView.MediaPlayer = null;
+            }
 
             VVMainView.MediaPlayer = parent!.MakeMediaPlayer();
             CurrentPlayer!.EnableKeyInput = false;

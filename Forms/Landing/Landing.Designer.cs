@@ -34,6 +34,8 @@
             label1 = new Label();
             pictureBox1 = new PictureBox();
             MIInformationPanel = new WINFORMS_VLCClient.Controls.MediaInfomationPanel();
+            label2 = new Label();
+            BOpenSettingsButton = new Button();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
             SuspendLayout();
             // 
@@ -49,7 +51,7 @@
             // 
             // BWatchNew
             // 
-            BWatchNew.Location = new Point(48, 249);
+            BWatchNew.Location = new Point(14, 248);
             BWatchNew.Name = "BWatchNew";
             BWatchNew.Size = new Size(137, 23);
             BWatchNew.TabIndex = 0;
@@ -60,9 +62,9 @@
             // label1
             // 
             label1.BackColor = SystemColors.ActiveCaptionText;
-            label1.Location = new Point(19, 237);
+            label1.Location = new Point(5, 234);
             label1.Name = "label1";
-            label1.Size = new Size(200, 2);
+            label1.Size = new Size(230, 2);
             label1.TabIndex = 2;
             // 
             // pictureBox1
@@ -81,14 +83,34 @@
             MIInformationPanel.Size = new Size(228, 95);
             MIInformationPanel.TabIndex = 5;
             // 
+            // label2
+            // 
+            label2.BackColor = SystemColors.ActiveCaptionText;
+            label2.Location = new Point(155, 252);
+            label2.Name = "label2";
+            label2.Size = new Size(2, 15);
+            label2.TabIndex = 6;
+            // 
+            // BOpenSettingsButton
+            // 
+            BOpenSettingsButton.Location = new Point(161, 248);
+            BOpenSettingsButton.Name = "BOpenSettingsButton";
+            BOpenSettingsButton.Size = new Size(63, 23);
+            BOpenSettingsButton.TabIndex = 0;
+            BOpenSettingsButton.Text = "Settings";
+            BOpenSettingsButton.UseVisualStyleBackColor = true;
+            BOpenSettingsButton.MouseClick += SettingsButton_Click;
+            // 
             // Landing
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(241, 278);
+            Controls.Add(label2);
             Controls.Add(MIInformationPanel);
             Controls.Add(pictureBox1);
             Controls.Add(label1);
+            Controls.Add(BOpenSettingsButton);
             Controls.Add(BWatchNew);
             Controls.Add(BContinueLast);
             FormBorderStyle = FormBorderStyle.FixedSingle;
@@ -107,5 +129,7 @@
         private Label label1;
         private PictureBox pictureBox1;
         private Controls.MediaInfomationPanel MIInformationPanel;
+        private Label label2;
+        private Button BOpenSettingsButton;
     }
 }

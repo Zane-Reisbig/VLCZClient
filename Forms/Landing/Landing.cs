@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Dynamic;
 using System.Reflection.Metadata.Ecma335;
 using ClientLib.STD;
 using LibVLCSharp.Shared;
@@ -7,6 +8,7 @@ using LibVLCSharp.WinForms;
 using WINFORMS_VLCClient.Controls;
 using WINFORMS_VLCClient.Lib;
 using WINFORMS_VLCClient.Lib.MediaInformation;
+using WINFORMS_VLCClient.Settings;
 using WINFORMS_VLCClient.Viewer;
 using static ClientLib.STD.StandardDefinitions;
 
@@ -24,11 +26,9 @@ namespace WINFORMS_VLCClient
         ];
 
         static readonly string historyFileName = "history.txt";
-
-        static string HistoryPath
-        {
-            get => Path.Combine(Environment.CurrentDirectory, historyFileName);
-        }
+        static readonly string settingsFileName = "settings.txt";
+        static string HistoryPath => Path.Combine(Environment.CurrentDirectory, historyFileName);
+        static string SettingsPath => Path.Combine(Environment.CurrentDirectory, settingsFileName);
 
         LibVLC? vlcLib;
         LibVLC VLCLib
@@ -49,13 +49,49 @@ namespace WINFORMS_VLCClient
         {
             get
             {
-                lastWatched ??= GetLastWatched();
+                if (!File.Exists(HistoryPath))
+                {
+                    WriteDictToINIFile<string, string>(
+                        HistoryPath,
+                        new() { { "path", "None" }, { "timestamp", "None" } }
+                    );
+                }
+
+                if (lastWatched == null)
+                    lastWatched = MediaInformation.ReadFromINI(HistoryPath);
+
                 return lastWatched;
             }
             set
             {
                 lastWatched = value;
                 lastWatched.WriteToFile(HistoryPath);
+            }
+        }
+
+        SettingsPackage? settings;
+
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public SettingsPackage Settings
+        {
+            get
+            {
+                if (settings == null)
+                {
+                    settings = SettingsPackage.ReadFromFile(SettingsPath);
+                    if (settings == null)
+                    {
+                        settings = new();
+                        settings.WriteToFile(SettingsPath);
+                    }
+                }
+
+                return settings;
+            }
+            set
+            {
+                settings = value;
+                settings.WriteToFile(SettingsPath);
             }
         }
 
@@ -69,7 +105,7 @@ namespace WINFORMS_VLCClient
         }
 
         Viewer.Viewer? videoViewForm;
-        Viewer.Viewer VideoViewForm
+        public Viewer.Viewer VideoViewForm
         {
             get
             {
@@ -91,6 +127,24 @@ namespace WINFORMS_VLCClient
             }
         }
 
+        SettingsForm? settingsForm;
+        SettingsForm SettingsForm
+        {
+            get
+            {
+                if (settingsForm == null || settingsForm.IsDisposed || settingsForm.Disposing)
+                {
+                    settingsForm = new SettingsForm(this);
+                    settingsForm.FormClosed += (_, _) =>
+                    {
+                        BOpenSettingsButton.Enabled = true;
+                    };
+                }
+
+                return settingsForm;
+            }
+        }
+
         OpenFileDialog? fileDialog;
         OpenFileDialog FileDialog
         {
@@ -106,26 +160,13 @@ namespace WINFORMS_VLCClient
             }
         }
 
-        static void CreateNewHistory() =>
-            WriteDictToINIFile<string, string>(
-                HistoryPath,
-                new() { { "path", "None" }, { "timestamp", "None" } }
-            );
-
-        static MediaInformation GetLastWatched()
-        {
-            if (!Path.Exists(HistoryPath))
-                CreateNewHistory();
-
-            return MediaInformation.ReadFromINI(HistoryPath);
-        }
-
         public Landing(string? playPath)
         {
             Core.Initialize();
             InitializeComponent();
 
             FillLastWatched(LastWatched);
+            var _ = Settings;
 
             if (LastWatched.FilePath == null)
                 BContinueLast.Enabled = false;
@@ -154,9 +195,26 @@ namespace WINFORMS_VLCClient
 
             this.LastWatched = new(new(nextEpisode), Timestamp.FromMS(0));
 
-            VideoViewForm.Close();
-            PlayMediaFromString(nextEpisode!);
-            VideoViewForm.Show();
+            PlayMediaFromString(nextEpisode);
+        }
+
+        public void PlayMediaFromString(string path, Timestamp? timestamp = null)
+        {
+            if (videoViewForm != null)
+            {
+                videoViewForm.Close();
+                videoViewForm = null;
+            }
+
+            if (this.LastWatched.FilePath != null && this.LastWatched.FilePath.LocalPath == path)
+                timestamp = this.LastWatched.Timestamp;
+
+            DisableWatchButtons();
+            videoViewForm?.Close();
+            VideoViewForm.PlayMedia(new Media(VLCLib, path), timestamp);
+
+            if (!VideoViewForm.Visible)
+                VideoViewForm.Show();
         }
 
         void FillLastWatched(MediaInformation source)
@@ -166,7 +224,17 @@ namespace WINFORMS_VLCClient
             MIInformationPanel.MediaPath = Path.GetDirectoryName(source.FilePath?.LocalPath) ?? "";
         }
 
-        void DisableButtons()
+        void ShowSettingsMenu()
+        {
+            BOpenSettingsButton.Enabled = false;
+
+            if (SettingsForm.Visible)
+                return;
+
+            SettingsForm.Show();
+        }
+
+        void DisableWatchButtons()
         {
             BWatchNew.Enabled = false;
             BContinueLast.Enabled = false;
@@ -178,18 +246,9 @@ namespace WINFORMS_VLCClient
             BContinueLast.Enabled = true;
         }
 
-        void PlayMediaFromString(string path, Timestamp? timestamp = null)
-        {
-            DisableButtons();
-            VideoViewForm.PlayMedia(new Media(VLCLib, path), timestamp);
-
-            if (!VideoViewForm.Visible)
-                VideoViewForm.Show();
-        }
-
         void BWatchNew_Click(object? sender, EventArgs e)
         {
-            DisableButtons();
+            DisableWatchButtons();
 
             var res = FileDialog.ShowDialog();
             if (res != DialogResult.OK)
@@ -204,7 +263,7 @@ namespace WINFORMS_VLCClient
 
         void BContinueLast_Click(object? sender, EventArgs e)
         {
-            DisableButtons();
+            DisableWatchButtons();
 
             if (LastWatched.FilePath == null)
             {
@@ -226,6 +285,11 @@ namespace WINFORMS_VLCClient
                 VideoViewFormRestorePosition = VideoViewForm.Location;
 
             view.Shown -= RestoreLocationHook;
+        }
+
+        private void SettingsButton_Click(object sender, MouseEventArgs e)
+        {
+            ShowSettingsMenu();
         }
     }
 }

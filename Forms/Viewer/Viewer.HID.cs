@@ -1,4 +1,5 @@
-﻿using ClientLib.STD;
+﻿using System.Diagnostics;
+using ClientLib.STD;
 using WINFORMS_VLCClient.Lib;
 using WINFORMS_VLCClient.Lib.Hotkeys;
 
@@ -36,6 +37,53 @@ namespace WINFORMS_VLCClient.Viewer
                 HotkeyHelper.MOD_NONE,
                 (uint)Keys.MediaPlayPause
             );
+        }
+
+        private void VVMainView_DragDrop(object sender, DragEventArgs e)
+        {
+            if (
+                e.Data == null
+                || e.Data.GetData(DataFormats.FileDrop) is not string[] file
+                || file.Length == 0
+            )
+                return;
+
+            var ourFile = file[0];
+            var extension = Path.GetExtension(ourFile)[1..];
+
+            if (Subtitles.GoodFileExtensions.Contains(extension))
+            {
+                if (LoadSubtitleFromFile(ourFile))
+                    // Successful return early
+                    return;
+
+                Cursor = Cursors.No;
+                StandardDefinitions.RunInThreadPool(
+                    (_) =>
+                    {
+                        Thread.Sleep(VISUAL_ERROR_TIMEOUT_SMALL);
+                        StandardDefinitions.RunSafeInvoke(this, () => Cursor = Cursors.Default);
+                    }
+                );
+                Debug.WriteLine($"WARN: Failed to set subtitles to: \"{file[0]}\"");
+            }
+            else if (GoodFileExtensions.Contains(extension))
+            {
+                Debug.WriteLine("Playing!");
+                parent.PlayMediaFromString(ourFile);
+            }
+            else
+                Debug.WriteLine(
+                    $"WARN: Failed to do anything with file extension: \"{extension}\""
+                );
+        }
+
+        private void VVMainView_DragEnter(object sender, DragEventArgs e)
+        {
+            if (e.Data == null || !e.Data.GetDataPresent(DataFormats.FileDrop))
+                return;
+
+            e.Effect = DragDropEffects.Link;
         }
 
         void ScrollWheelSeek(object? sender, MouseEventArgs e)

@@ -40,6 +40,16 @@ namespace WINFORMS_VLCClient.Viewer
         static readonly Point ContainerLocationButtons = new(189, 485);
         static readonly Point ContainerLocationMarker = new(36, 475);
 
+        public static readonly string[] GoodFileExtensions =
+        [
+            "mkv",
+            "mp4",
+            "mov",
+            "wmv",
+            "avi",
+            "flv",
+        ];
+
         readonly Landing parent;
         readonly Timer pollTimer;
         readonly Control[] allTheThingsThatNeedToAppearOnHover;
@@ -208,38 +218,6 @@ namespace WINFORMS_VLCClient.Viewer
                 FullscreenHelper.LeaveFullscreen(this.Handle);
 
             isFullScreen = to;
-        }
-
-        private void VVMainView_DragDrop(object sender, DragEventArgs e)
-        {
-            if (
-                e.Data == null
-                || e.Data.GetData(DataFormats.FileDrop) is not string[] file
-                || file.Length == 0
-            )
-                return;
-
-            if (LoadSubtitleFromFile(file[0]))
-                // Successful return early
-                return;
-
-            Cursor = Cursors.No;
-            RunInThreadPool(
-                (_) =>
-                {
-                    Thread.Sleep(VISUAL_ERROR_TIMEOUT_SMALL);
-                    RunSafeInvoke(this, () => Cursor = Cursors.Default);
-                }
-            );
-            Debug.WriteLine($"WARN: Failed to set subtitles to: \"{file[0]}\"");
-        }
-
-        private void VVMainView_DragEnter(object sender, DragEventArgs e)
-        {
-            if (e.Data == null || !e.Data.GetDataPresent(DataFormats.FileDrop))
-                return;
-
-            e.Effect = DragDropEffects.Link;
         }
 
         protected override void WndProc(ref Message m)

@@ -4,7 +4,7 @@
     <DebuggerFlavor>ProjectDebugger</DebuggerFlavor>
   </PropertyGroup>
   <PropertyGroup>
-    <ActiveDebugProfile>With System Args</ActiveDebugProfile>
+    <ActiveDebugProfile>WINFORMS-VLCClient</ActiveDebugProfile>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <DebuggerFlavor>ProjectDebugger</DebuggerFlavor>
@@ -23,6 +23,12 @@
       <SubType>UserControl</SubType>
     </Compile>
     <Compile Update="Forms\Landing\Landing.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\Settings\Settings.SettingsPackage.cs">
+      <SubType>dummy</SubType>
+    </Compile>
+    <Compile Update="Forms\Settings\SettingsForm.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Update="Forms\Viewer\Viewer.Controls.cs">

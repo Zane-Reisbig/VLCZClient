@@ -17,77 +17,93 @@ namespace WINFORMS_VLCClient.Lib
 
         public static EventHandler? SubtitleAdded;
 
-        static ManualResetEventSlim? GetSubtitlesMutex;
-        static ManualResetEventSlim? SetSubtitlesMutex;
+        static ManualResetEventSlim? GetSubtitlesEvent;
+        static ManualResetEventSlim? SetSubtitlesEvent;
 
         public static TrackDescription[]? GetEmbeddedMediaSubtitles(MediaPlayer? player)
         {
-            if (GetSubtitlesMutex != null || player == null)
+            if (GetSubtitlesEvent != null || player == null)
                 return null;
 
-            GetSubtitlesMutex = new();
+            GetSubtitlesEvent = new();
 
             TrackDescription[]? tracks = null;
             StandardDefinitions.RunInThreadPool(
                 (_) =>
                 {
                     tracks = player.SpuDescription;
-                    GetSubtitlesMutex.Set();
+                    GetSubtitlesEvent.Set();
                 },
                 "Getting Subtitle Description"
             );
 
-            GetSubtitlesMutex.Wait();
-            GetSubtitlesMutex = null;
+            GetSubtitlesEvent.Wait();
+            GetSubtitlesEvent = null;
 
             return tracks;
         }
 
-        public static bool SetSubtitleTrackByID(MediaPlayer player, int id)
+        public static void SetByLanguage(
+            MediaPlayer player,
+            List<string> possibleLanguages,
+            List<string>? ignore = null
+        )
         {
-            if (SetSubtitlesMutex != null)
-                return false;
+            var subs = GetEmbeddedMediaSubtitles(player);
+            if (subs == null)
+                return;
 
-            SetSubtitlesMutex = new();
+            Debug.WriteLine($"All Tracks: {String.Join(", ", subs.Select(sub => sub.Name))}");
 
-            bool outResult = false;
+            var _ignore = ignore != null ? ignore.Select(i => i.ToLower()) : [];
+            var ourLang = subs.Where(
+                    (sub) =>
+                    {
+                        var good = false;
+
+                        foreach (var langCode in possibleLanguages)
+                        {
+                            var pred = sub.Name.ToLower();
+                            if (pred.Contains(langCode))
+                            {
+                                good = true;
+                                break;
+                            }
+                        }
+
+                        foreach (var blackListed in _ignore)
+                        {
+                            var pred = sub.Name.ToLower();
+                            if (pred.Contains(blackListed))
+                            {
+                                good = false;
+                                break;
+                            }
+                        }
+
+                        return good;
+                    }
+                )
+                .ToList();
+
+            if (ourLang == null || ourLang.Count == 0)
+                return;
+
+            Debug.WriteLine($"Found Sub Tracks: {String.Join(", ", ourLang)}");
+
+            SetSubtitleTrackByID(player, ourLang[0].Id);
+        }
+
+        public static void SetSubtitleTrackByID(MediaPlayer player, int id)
+        {
             StandardDefinitions.RunInThreadPool(
                 (_) =>
                 {
                     var og = player.Spu;
-                    var allSubs = GetEmbeddedMediaSubtitles(player);
-
-                    if (allSubs == null)
-                    {
-                        Debug.WriteLine($"WARN: No Subtitles returned!");
-                        return;
-                    }
-
-                    TrackDescription? trackDescription = null;
-                    try
-                    {
-                        if (0 > id)
-                            trackDescription = allSubs[^Math.Abs(id)];
-                        else
-                            trackDescription = allSubs[id];
-                    }
-                    catch (ArgumentOutOfRangeException)
-                    {
-                        Debug.WriteLine($"WARN: {id} out of range {player.SpuCount}");
-                        return;
-                    }
-
-                    player.SetSpu(trackDescription.Value.Id);
-                    Debug.WriteLine($"INFO: Sub Track changed! {og}->{trackDescription.Value.Id}");
-                    outResult = true;
-                    SetSubtitlesMutex.Set();
+                    player.SetSpu(id);
+                    Debug.WriteLine($"INFO: Sub Track changed! {og}->{id}");
                 }
             );
-
-            SetSubtitlesMutex.Wait();
-            SetSubtitlesMutex = null;
-
-            return outResult;
         }
 
         public static bool Load(MediaPlayer player, string filePath, bool show = true)

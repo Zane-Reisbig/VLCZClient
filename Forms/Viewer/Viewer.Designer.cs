@@ -40,6 +40,7 @@
             PSkipIntroFullContainer = new Panel();
             CMSLeftClickMenu = new ContextMenuStrip(components);
             TSMISubtitle = new ToolStripMenuItem();
+            TSMILanguage = new ToolStripMenuItem();
             ((System.ComponentModel.ISupportInitialize)VVMainView).BeginInit();
             ((System.ComponentModel.ISupportInitialize)TBVolumeBar).BeginInit();
             PSkipIntroButtonContainer.SuspendLayout();
@@ -149,16 +150,22 @@
             // 
             // CMSLeftClickMenu
             // 
-            CMSLeftClickMenu.Items.AddRange(new ToolStripItem[] { TSMISubtitle });
+            CMSLeftClickMenu.Items.AddRange(new ToolStripItem[] { TSMISubtitle, TSMILanguage });
             CMSLeftClickMenu.Name = "CMSLeftClickMenu";
-            CMSLeftClickMenu.Size = new Size(120, 26);
+            CMSLeftClickMenu.Size = new Size(181, 70);
             CMSLeftClickMenu.Tag = "Subtitles";
             // 
             // TSMISubtitle
             // 
             TSMISubtitle.Name = "TSMISubtitle";
-            TSMISubtitle.Size = new Size(119, 22);
+            TSMISubtitle.Size = new Size(180, 22);
             TSMISubtitle.Text = "Subtitles";
+            // 
+            // TSMILanguage
+            // 
+            TSMILanguage.Name = "TSMILanguage";
+            TSMILanguage.Size = new Size(180, 22);
+            TSMILanguage.Text = "Language";
             // 
             // Viewer
             // 
@@ -194,5 +201,6 @@
         private Panel PSkipIntroFullContainer;
         private ContextMenuStrip CMSLeftClickMenu;
         private ToolStripMenuItem TSMISubtitle;
+        private ToolStripMenuItem TSMILanguage;
     }
 }

@@ -36,6 +36,8 @@ namespace WINFORMS_VLCClient.Viewer
             TSMISubtitle.MouseHover += ShowSubtitleBox;
             Subtitles.SubtitleAdded += PopulateSubtitlesInMenuHook;
 
+            TSMILanguage.MouseHover += ShowLanguageBox;
+
             MKRIntroSkip.MarkConfirmed += ConfirmIntro;
             MKRIntroSkip.ExitButtonClicked += HideIntroSkipMaker;
             MKRIntroSkip.TimestampGetter = GetCurrentTimestamp;
@@ -64,6 +66,8 @@ namespace WINFORMS_VLCClient.Viewer
             TSMISubtitle.MouseHover -= ShowSubtitleBox;
             Subtitles.SubtitleAdded -= PopulateSubtitlesInMenuHook;
 
+            TSMILanguage.MouseHover -= ShowLanguageBox;
+
             foreach (ToolStripMenuItem item in TSMISubtitle.DropDownItems)
                 item.MouseUp -= EnableSubtitle;
 
@@ -79,6 +83,8 @@ namespace WINFORMS_VLCClient.Viewer
         }
 
         private void ShowSubtitleBox(object? sender, EventArgs e) => TSMISubtitle.ShowDropDown();
+
+        private void ShowLanguageBox(object? sender, EventArgs e) => TSMILanguage.ShowDropDown();
 
         void PopulateSubtitlesInMenuHook(object? sender, EventArgs e) =>
             RunSafeInvoke(this, PopulateSubtitlesInMenu);
@@ -103,7 +109,7 @@ namespace WINFORMS_VLCClient.Viewer
                 ToolStripMenuItem item = new()
                 {
                     Text = $"[{subtitle.Id}] - {subtitle.Name}",
-                    Tag = subtitle.Id - 1,
+                    Tag = subtitle.Id,
                 };
                 item.MouseUp += EnableSubtitle;
 
@@ -115,6 +121,52 @@ namespace WINFORMS_VLCClient.Viewer
             subtitles.Add(customSub);
 
             TSMISubtitle.DropDownItems.AddRange([.. subtitles]);
+        }
+
+        void PopulateLanguagesInMenu()
+        {
+            if (CurrentPlayer == null || CurrentPlayer.Media == null)
+                return;
+
+            TSMILanguage.DropDownItems.Clear();
+
+            var haveTracks = AudioTrack.GetAllAudioTracks(CurrentPlayer.Media);
+            if (haveTracks == null || haveTracks.Count == 0)
+            {
+                Debug.WriteLine("WARN: No subtitles found on media!");
+                return;
+            }
+
+            List<ToolStripMenuItem> tracks = [];
+            foreach (var track in haveTracks)
+            {
+                ToolStripMenuItem item = new()
+                {
+                    Text = $"[{track.id}] - {track.lang}",
+                    Tag = track.id,
+                };
+                item.MouseUp += EnableAudioTrackHook;
+
+                tracks.Add(item);
+            }
+
+            TSMILanguage.DropDownItems.AddRange([.. tracks]);
+        }
+
+        void EnableAudioTrackHook(object? sender, EventArgs e)
+        {
+            if (sender is not ToolStripMenuItem item)
+                return;
+
+            EnableAudioTrack((int)item.Tag!);
+        }
+
+        void EnableAudioTrack(int id)
+        {
+            if (CurrentPlayer == null)
+                return;
+
+            AudioTrack.SetAudioTrack(CurrentPlayer, id);
         }
 
         void SelectSubtitleTrackHook(object? sender, EventArgs e) => LoadSubtitleFromFile();
