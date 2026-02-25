@@ -15,20 +15,8 @@ namespace WINFORMS_VLCClient
         static CancellationTokenSource? pipedMessageCancellationSource;
         static Landing? landingInst;
         static Mutex processLock = new(true, ZMEDIA_MUTEX_ID, out createdMutex);
-        static NamedPipeServerStream pipeServer = new NamedPipeServerStream(
-            ZMEDIA_PIPE_SERVER_NAME,
-            PipeDirection.In,
-            5,
-            PipeTransmissionMode.Message,
-            PipeOptions.Asynchronous
-        );
-
-        static NamedPipeClientStream pipeClient = new NamedPipeClientStream(
-            ".",
-            ZMEDIA_PIPE_SERVER_NAME,
-            PipeDirection.Out,
-            PipeOptions.Asynchronous
-        );
+        static NamedPipeServerStream pipeServer = null!;
+        static NamedPipeClientStream pipeClient = null!;
 
         [STAThread]
         static void Main(string[] args)
@@ -39,6 +27,13 @@ namespace WINFORMS_VLCClient
 
             if (!createdMutex)
             {
+                pipeClient = new NamedPipeClientStream(
+                    ".",
+                    ZMEDIA_PIPE_SERVER_NAME,
+                    PipeDirection.Out,
+                    PipeOptions.Asynchronous
+                );
+
                 ManualResetEventSlim pipedMessageEvent = new();
                 Task.Run(async () =>
                 {
@@ -53,6 +48,14 @@ namespace WINFORMS_VLCClient
 
             Application.EnableVisualStyles();
             ApplicationConfiguration.Initialize();
+
+            pipeServer = new NamedPipeServerStream(
+                ZMEDIA_PIPE_SERVER_NAME,
+                PipeDirection.In,
+                5,
+                PipeTransmissionMode.Message,
+                PipeOptions.Asynchronous
+            );
 
             landingInst = new Landing(passedArgs);
             pipedMessageCancellationSource = new();
@@ -153,9 +156,6 @@ namespace WINFORMS_VLCClient
 
         static void TearDown()
         {
-            if (pipeServer.IsConnected)
-                pipeServer.Disconnect();
-
             if (
                 pipedMessageCancellationSource != null
                 && !pipedMessageCancellationSource.IsCancellationRequested
@@ -165,10 +165,17 @@ namespace WINFORMS_VLCClient
                 pipedMessageCancellationSource.Dispose();
             }
 
-            pipeClient.Dispose();
-
             if (createdMutex)
+            {
+                if (pipeServer.IsConnected)
+                    pipeServer.Disconnect();
+
+                pipeServer.Dispose();
+
                 UnlockProcess();
+            }
+            else
+                pipeClient.Dispose();
         }
     }
 }

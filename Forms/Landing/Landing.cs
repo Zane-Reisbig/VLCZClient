@@ -27,8 +27,15 @@ namespace WINFORMS_VLCClient
 
         static readonly string historyFileName = "history.txt";
         static readonly string settingsFileName = "settings.txt";
-        static string HistoryPath => Path.Combine(Environment.CurrentDirectory, historyFileName);
-        static string SettingsPath => Path.Combine(Environment.CurrentDirectory, settingsFileName);
+        static string HistoryPath =>
+            Path.Combine(Directory.GetParent(Environment.ProcessPath!)!.FullName, historyFileName);
+        static string SettingsPath =>
+            Path.Combine(
+                Path.Combine(
+                    Directory.GetParent(Environment.ProcessPath!)!.FullName,
+                    settingsFileName
+                )
+            );
 
         LibVLC? vlcLib;
         LibVLC VLCLib
