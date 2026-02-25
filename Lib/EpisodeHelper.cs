@@ -9,11 +9,11 @@ namespace WINFORMS_VLCClient.Lib
 {
     public static class EpisodeHelper
     {
-        public static string? GetPrevFileAlphOrder(string currentFilePath) =>
-            GetRelativeFile(currentFilePath, -1);
-
         public static string? GetNextFileAlphOrder(string currentFilePath) =>
             GetRelativeFile(currentFilePath, 1);
+
+        public static string? GetPrevFileAlphOrder(string currentFilePath) =>
+            GetRelativeFile(currentFilePath, -1);
 
         static string? GetRelativeFile(string currentFilePath, int relativeIndex)
         {
