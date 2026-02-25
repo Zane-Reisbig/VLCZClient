@@ -39,10 +39,11 @@ namespace WINFORMS_VLCClient.Lib
             if (index == -1)
                 return null;
 
-            if (index == files.Count - 1 || 0 >= index)
+            int newIndex = index + relativeIndex;
+            if (newIndex < 0 || newIndex >= files.Count)
                 return currentFilePath;
 
-            return files[index + relativeIndex];
+            return files[newIndex];
         }
     }
 }
