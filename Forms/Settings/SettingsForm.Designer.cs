@@ -33,6 +33,8 @@
             CBUseSubsIfAvailable = new CheckBox();
             TBSubtitleDefaultLanguage = new TextBox();
             panel1 = new Panel();
+            TBSubtitleBlacklist = new TextBox();
+            label5 = new Label();
             BClose = new Button();
             BReset = new Button();
             label1 = new Label();
@@ -40,8 +42,6 @@
             panel2 = new Panel();
             TBAudioDefaultLanguage = new TextBox();
             label4 = new Label();
-            TBSubtitleBlacklist = new TextBox();
-            label5 = new Label();
             panel1.SuspendLayout();
             panel2.SuspendLayout();
             SuspendLayout();
@@ -62,7 +62,7 @@
             CBUseSubsIfAvailable.Name = "CBUseSubsIfAvailable";
             CBUseSubsIfAvailable.RightToLeft = RightToLeft.Yes;
             CBUseSubsIfAvailable.Size = new Size(145, 19);
-            CBUseSubsIfAvailable.TabIndex = 1;
+            CBUseSubsIfAvailable.TabIndex = 0;
             CBUseSubsIfAvailable.Text = "-  Use Subs if Available";
             CBUseSubsIfAvailable.UseVisualStyleBackColor = true;
             // 
@@ -71,7 +71,7 @@
             TBSubtitleDefaultLanguage.Location = new Point(8, 46);
             TBSubtitleDefaultLanguage.Name = "TBSubtitleDefaultLanguage";
             TBSubtitleDefaultLanguage.Size = new Size(207, 23);
-            TBSubtitleDefaultLanguage.TabIndex = 2;
+            TBSubtitleDefaultLanguage.TabIndex = 1;
             // 
             // panel1
             // 
@@ -85,6 +85,22 @@
             panel1.Name = "panel1";
             panel1.Size = new Size(226, 120);
             panel1.TabIndex = 3;
+            // 
+            // TBSubtitleBlacklist
+            // 
+            TBSubtitleBlacklist.Location = new Point(8, 90);
+            TBSubtitleBlacklist.Name = "TBSubtitleBlacklist";
+            TBSubtitleBlacklist.Size = new Size(207, 23);
+            TBSubtitleBlacklist.TabIndex = 2;
+            // 
+            // label5
+            // 
+            label5.AutoSize = true;
+            label5.Location = new Point(3, 72);
+            label5.Name = "label5";
+            label5.Size = new Size(142, 15);
+            label5.TabIndex = 3;
+            label5.Text = "Subtitle Keyword Blacklist";
             // 
             // BClose
             // 
@@ -137,7 +153,7 @@
             TBAudioDefaultLanguage.Location = new Point(8, 26);
             TBAudioDefaultLanguage.Name = "TBAudioDefaultLanguage";
             TBAudioDefaultLanguage.Size = new Size(207, 23);
-            TBAudioDefaultLanguage.TabIndex = 2;
+            TBAudioDefaultLanguage.TabIndex = 3;
             // 
             // label4
             // 
@@ -147,22 +163,6 @@
             label4.Size = new Size(135, 15);
             label4.TabIndex = 0;
             label4.Text = "Audio Default Language";
-            // 
-            // TBSubtitleBlacklist
-            // 
-            TBSubtitleBlacklist.Location = new Point(8, 90);
-            TBSubtitleBlacklist.Name = "TBSubtitleBlacklist";
-            TBSubtitleBlacklist.Size = new Size(207, 23);
-            TBSubtitleBlacklist.TabIndex = 4;
-            // 
-            // label5
-            // 
-            label5.AutoSize = true;
-            label5.Location = new Point(3, 72);
-            label5.Name = "label5";
-            label5.Size = new Size(142, 15);
-            label5.TabIndex = 3;
-            label5.Text = "Subtitle Keyword Blacklist";
             // 
             // SettingsForm
             // 

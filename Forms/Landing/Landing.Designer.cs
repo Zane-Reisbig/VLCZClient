@@ -54,7 +54,7 @@
             BWatchNew.Location = new Point(14, 248);
             BWatchNew.Name = "BWatchNew";
             BWatchNew.Size = new Size(137, 23);
-            BWatchNew.TabIndex = 0;
+            BWatchNew.TabIndex = 1;
             BWatchNew.Text = "Watch Something Else";
             BWatchNew.UseVisualStyleBackColor = true;
             BWatchNew.Click += BWatchNew_Click;
@@ -96,7 +96,7 @@
             BOpenSettingsButton.Location = new Point(161, 248);
             BOpenSettingsButton.Name = "BOpenSettingsButton";
             BOpenSettingsButton.Size = new Size(63, 23);
-            BOpenSettingsButton.TabIndex = 0;
+            BOpenSettingsButton.TabIndex = 2;
             BOpenSettingsButton.Text = "Settings";
             BOpenSettingsButton.UseVisualStyleBackColor = true;
             BOpenSettingsButton.MouseClick += SettingsButton_Click;
